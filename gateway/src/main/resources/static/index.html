@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carved Rock Fitness - Workouts</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Carved Rock Fitness Workouts</h1>
+        <button id="logoutButton">Logout</button>
+    </header>
+
+    <main>
+        <section id="workout-form-section">
+            <h2>Add/Edit Workout</h2>
+            <form id="workoutForm">
+                <input type="hidden" id="workoutId">
+                <div>
+                    <label for="name">Name:</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div>
+                    <label for="description">Description:</label>
+                    <textarea id="description" name="description"></textarea>
+                </div>
+                <div>
+                    <label for="durationMinutes">Duration (minutes):</label>
+                    <input type="number" id="durationMinutes" name="durationMinutes" required min="1">
+                </div>
+                <div>
+                    <label for="difficultyLevel">Difficulty:</label>
+                    <select id="difficultyLevel" name="difficultyLevel">
+                        <option value="Beginner">Beginner</option>
+                        <option value="Intermediate">Intermediate</option>
+                        <option value="Advanced">Advanced</option>
+                    </select>
+                </div>
+                <button type="submit">Save Workout</button>
+                <button type="button" id="clearFormButton">Clear</button>
+            </form>
+        </section>
+
+        <section id="workouts-list-section">
+            <h2>Available Workouts</h2>
+            <ul id="workoutsList">
+                <!-- Workouts will be dynamically inserted here -->
+            </ul>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2023 Carved Rock Fitness</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
