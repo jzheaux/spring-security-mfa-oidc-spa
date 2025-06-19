@@ -11,7 +11,7 @@ class WorkoutProxyController {
     private final RestClient rest;
 
     WorkoutProxyController(RestClient.Builder builder) {
-        this.rest = builder.baseUrl("http://localhost:8090").build();
+        this.rest = builder.baseUrl("https://api.127.0.0.1.nip.io:8443").build();
     }
 
     @GetMapping("/api/workouts")
