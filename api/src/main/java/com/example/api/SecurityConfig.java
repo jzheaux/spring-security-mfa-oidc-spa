@@ -1,6 +1,10 @@
 package com.example.api;
 
 import java.io.InputStream;
+import java.security.Key;
+import java.security.KeyFactory;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
 import javax.crypto.spec.SecretKeySpec;
@@ -27,10 +31,12 @@ class SecurityConfig {
 
     @Bean
     JwtDecoder decoder() throws Exception {
-        ClassPathResource secret = new ClassPathResource("certs/secret.pem");
-        try (InputStream in = Base64.getDecoder().wrap(secret.getInputStream())) {
-            SecretKeySpec spec = new SecretKeySpec(in.readAllBytes(), "AES");
-            return NimbusJwtDecoder.withSecretKey(spec).build();
+        ClassPathResource resource = new ClassPathResource("certs/public-key.pem");
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        try (InputStream in = Base64.getDecoder().wrap(resource.getInputStream())) {
+            X509EncodedKeySpec spec = new X509EncodedKeySpec(in.readAllBytes());
+            RSAPublicKey publicKey = (RSAPublicKey) keyFactory.generatePublic(spec);
+            return NimbusJwtDecoder.withPublicKey(publicKey).build();
         }
     }
 }
