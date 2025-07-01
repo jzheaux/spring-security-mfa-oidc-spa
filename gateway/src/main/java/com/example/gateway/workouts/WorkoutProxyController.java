@@ -1,5 +1,7 @@
 package com.example.gateway.workouts;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,9 +17,10 @@ class WorkoutProxyController {
     }
 
     @GetMapping("/api/workouts")
-    ResponseEntity<String> workouts() {
+    ResponseEntity<String> workouts(HttpServletRequest request) {
         String responseBody = this.rest.get()
                 .uri("/workouts")
+                .headers((h) -> h.set("Authorization", request.getHeader("Authorization")))
                 .retrieve()
                 .body(String.class);
         return ResponseEntity.ok(responseBody);

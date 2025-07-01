@@ -8,8 +8,11 @@ plugins {
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web") // Needed for RestController and RestClient
+    implementation("org.springframework.security:spring-security-oauth2-jose")
     implementation("org.apache.httpcomponents.client5:httpclient5") // Retained for RestClient if it uses Apache HTTP Client
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.testcontainers:junit-jupiter:1.19.3")
     // testImplementation("org.testcontainers:wiremock:1.19.3") 
     // testImplementation("org.testcontainers:mockserver-client:1.19.3") // Not using MockServer for now
