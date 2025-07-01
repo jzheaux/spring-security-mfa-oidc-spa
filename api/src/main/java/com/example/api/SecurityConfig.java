@@ -16,7 +16,8 @@ class SecurityConfig {
     SecurityFilterChain httpSecurity(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests((authorize) -> authorize.anyRequest().authenticated())
-            .httpBasic(Customizer.withDefaults());
+            .httpBasic(Customizer.withDefaults())
+            .x509(Customizer.withDefaults());
         return http.build();
     }
 
