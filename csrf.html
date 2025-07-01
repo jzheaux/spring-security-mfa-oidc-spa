@@ -27,16 +27,12 @@
 
 <iframe name="hiddenFrame"></iframe>
 
-<form id="authzLogoutForm" action="http://localhost:9000/logout" method="POST" target="hiddenFrame">
+<form id="authzLogoutForm" action="https://authz.127.0.0.1.nip.io:7443/logout" method="POST" target="hiddenFrame">
 </form>
-<form id="bffLogoutForm" action="http://127.0.0.1.nip.io:9443/logout" method="POST" target="hiddenFrame">
-</form>
+
 <script>
     setTimeout(() => {
       document.getElementById('authzLogoutForm').submit();
-    }, 1000);
-    setTimeout(() => {
-      document.getElementById('bffLogoutForm').submit();
     }, 1000);
 </script>
 </body>
