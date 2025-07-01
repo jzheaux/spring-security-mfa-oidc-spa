@@ -1,17 +1,15 @@
 package com.example.authserver;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -19,12 +17,10 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
-import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 import org.springframework.security.oauth2.core.oidc.OidcScopes;
 import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
-import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
@@ -32,16 +28,16 @@ import org.springframework.security.oauth2.server.authorization.config.annotatio
 import org.springframework.security.oauth2.server.authorization.oidc.authentication.OidcUserInfoAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
-import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
-import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.util.StringUtils;
 
+import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
@@ -86,7 +82,8 @@ class AuthServerConfig {
             )
             .oauth2ResourceServer((oauth2) -> oauth2.jwt(Customizer.withDefaults()))
             .httpBasic(Customizer.withDefaults())
-            .formLogin(Customizer.withDefaults());
+            .formLogin(Customizer.withDefaults())
+            .with(new MfaConfigurer(), Customizer.withDefaults());
         return http.build();
     }
 
@@ -141,5 +138,16 @@ class AuthServerConfig {
     @Bean
     AuthorizationServerSettings settings() {
         return AuthorizationServerSettings.builder().build();
+    }
+
+    private static class MfaConfigurer extends AbstractHttpConfigurer<MfaConfigurer, HttpSecurity> {
+        @Override
+        public void init(HttpSecurity http) throws Exception {
+            RequestCache cache = http.getSharedObject(RequestCache.class);
+            AuthenticatedByAccessDeniedHandler handler =
+                new AuthenticatedByAccessDeniedHandler(cache);
+            http.exceptionHandling(exceptions -> exceptions.accessDeniedHandler(handler));
+
+        }
     }
 }

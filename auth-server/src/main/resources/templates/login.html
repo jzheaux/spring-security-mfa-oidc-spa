@@ -9,14 +9,20 @@
     <link href="/default-ui.css" rel="stylesheet" />
 </head>
 <body>
-<h1>Login page</h1>
-<p th:if="${param.error}" class="error">Wrong user or password</p>
-<form th:action="@{/login}" method="post">
-    <label for="username">Username</label>:
-    <input type="text" id="username" name="username" autofocus="autofocus" /> <br />
-    <label for="password">Password</label>:
-    <input type="password" id="password" name="password" /> <br />
-    <input type="submit" value="Log in" />
-</form>
+<div class="content">
+    <form th:action="@{/login}" method="post" class="login-form">
+        <h2>Please sign in</h2>
+        <p th:if="${param.error}" class="error">Wrong user or password</p>
+        <p>
+            <label for="username" class="screenreader">Username</label>
+            <input type="text" id="username" name="username" placeholder="Username" autofocus required />
+        </p>
+        <p>
+            <label for="password" class="screenreader">Password</label>
+            <input type="password" id="password" name="password" placeholder="Password" autofocus required />
+        </p>
+        <button type="submit" class="primary">Sign in</button>
+    </form>
+</div>
 </body>
 </html>

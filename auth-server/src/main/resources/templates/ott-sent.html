@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>One-Time Token Sent</title>
+    <link rel="stylesheet" href="/default-ui.css" />
+</head>
+<body>
+<div class="content">
+    <form th:action="@{/login/ott}" method="post">
+        <h2>One-Time Token Sent</h2>
+        <p>A one-time token has been sent to the email associated with the account. Please enter the token here:</p>
+        <p>
+            <label for="token" class="screenreader">Token</label>
+            <input type="text" id="token" name="token" placeholder="Token" autofocus required/>
+        </p>
+        <button type="submit" class="primary">Verify Token</button>
+    </form>
+</div>
+</body>
+</html>

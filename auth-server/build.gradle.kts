@@ -5,11 +5,14 @@ plugins {
 }
 
 dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-authorization-server")
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.postgresql:postgresql")
     implementation("org.thymeleaf.extras:thymeleaf-extras-springsecurity6")
+    implementation("com.webauthn4j:webauthn4j-core:0.29.4.RELEASE")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
 }
