@@ -21,6 +21,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.client.RestClient;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -30,18 +31,14 @@ class GatewayApplicationTests {
     MockMvc mvc;
 
     @Autowired
-    JwtEncoder encoder;
+    RestClient.Builder rest;
 
     String token() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256).build();
-        JwtClaimsSet claims = JwtClaimsSet.builder()
-            .subject(authentication.getName())
-            .issuedAt(Instant.now())
-            .expiresAt(Instant.now().plusSeconds(86400))
-            .claim("scope", "app")
-            .build();
-        return this.encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+        return this.rest.build().get()
+            .uri("http://localhost:9000/token")
+            .headers((h) -> h.setBasicAuth("declan", "password"))
+            .retrieve()
+            .body(String.class);
     }
 
     @WithMockUser
