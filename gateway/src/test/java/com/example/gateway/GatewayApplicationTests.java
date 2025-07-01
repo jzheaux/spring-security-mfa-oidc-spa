@@ -46,7 +46,8 @@ class GatewayApplicationTests {
     @WithMockUser
     @Test
     void workoutsEndpoint() throws Exception {
-        this.mvc.perform(get("/api/workouts"))
+        this.mvc.perform(get("/api/workouts")
+                .header("Authorization", "Bearer " + token()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$", hasSize(5)));
     }
