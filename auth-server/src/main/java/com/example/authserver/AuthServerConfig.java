@@ -1,11 +1,15 @@
 package com.example.authserver;
 
+import static com.example.authserver.AuthenticatedByAuthorizationManager.needs;
+
 import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.ott.OneTimeTokenAuthenticationToken;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -77,12 +81,14 @@ class AuthServerConfig {
     SecurityFilterChain appEndpointSecurity(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/error").permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers("/error", "/login").permitAll()
+                .requestMatchers("/ott/**").access(needs(UsernamePasswordAuthenticationToken.class))
+                .anyRequest().access(needs(OneTimeTokenAuthenticationToken.class))
             )
             .oauth2ResourceServer((oauth2) -> oauth2.jwt(Customizer.withDefaults()))
             .httpBasic(Customizer.withDefaults())
             .formLogin(Customizer.withDefaults())
+            .oneTimeTokenLogin((ott) -> ott.loginPage("/ott"))
             .with(new MfaConfigurer(), Customizer.withDefaults());
         return http.build();
     }
