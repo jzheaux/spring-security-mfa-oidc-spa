@@ -2,19 +2,24 @@
 
  import javax.net.ssl.SSLContext;
 
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
-import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
-import org.apache.hc.core5.ssl.SSLContexts;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.web.client.RestClientCustomizer;
-import org.springframework.context.annotation.Bean;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisIndexedHttpSession;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
+ import org.apache.hc.client5.http.impl.classic.HttpClients;
+ import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+ import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
+ import org.apache.hc.core5.ssl.SSLContexts;
+ import org.springframework.boot.SpringApplication;
+ import org.springframework.boot.autoconfigure.SpringBootApplication;
+ import org.springframework.boot.web.client.RestClientCustomizer;
+ import org.springframework.context.annotation.Bean;
+ import org.springframework.core.io.ClassPathResource;
+ import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+ import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+ import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+ import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizedClientManager;
+ import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
+ import org.springframework.security.oauth2.client.web.client.OAuth2ClientHttpRequestInterceptor;
+ import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisIndexedHttpSession;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.web.bind.annotation.GetMapping;
 
 @EnableRedisIndexedHttpSession
 @SpringBootApplication
@@ -28,7 +33,7 @@ class GatewayApplication {
     }
    
     @Bean
-    RestClientCustomizer tls() throws Exception {
+    RestClientCustomizer tls(ClientRegistrationRepository clients, OAuth2AuthorizedClientRepository authz) throws Exception {
         ClassPathResource truststore = new ClassPathResource("certs/gateway-truststore.p12");
         ClassPathResource keystore = new ClassPathResource("certs/gateway-keystore.p12");
         char[] password = "password".toCharArray();
@@ -45,8 +50,10 @@ class GatewayApplication {
                 .setConnectionManager(connectionManager)
                 .build();
 
+        OAuth2AuthorizedClientManager manager = new DefaultOAuth2AuthorizedClientManager(clients, authz);
         return (rest) -> {
             rest.requestFactory(new HttpComponentsClientHttpRequestFactory(httpClient));
+            rest.requestInterceptor(new OAuth2ClientHttpRequestInterceptor(manager));
         };
     }
 
