@@ -234,13 +234,28 @@ function applyAugmentations(analysis) {
 
 // --- Generic Popup Creation and Removal Functions ---
 
+let popupRemovalTimeout; // Timer to manage popup removal delay
+
 function createPopup(element, content, url = null) {
+  // Clear any pending removals
+  clearTimeout(popupRemovalTimeout);
+
   // Remove any existing popups first
   const existingPopups = document.querySelectorAll('.web-augmenter-popup');
   existingPopups.forEach(p => p.remove());
 
   const popup = document.createElement('div');
   popup.className = 'web-augmenter-popup';
+
+  // When mouse enters the popup, cancel any pending removal
+  popup.addEventListener('mouseenter', () => {
+    clearTimeout(popupRemovalTimeout);
+  });
+
+  // When mouse leaves the popup, remove it immediately
+  popup.addEventListener('mouseleave', () => {
+    popup.remove();
+  });
 
   // Populate popup content
   const text = document.createElement('p');
@@ -283,28 +298,16 @@ function createPopup(element, content, url = null) {
   element._webAugmenterPopup = popup;
 }
 
-function removePopup(element, event) {
-  if (element._webAugmenterPopup) {
-    // Check if the mouse is moving to the popup itself
-    if (event.relatedTarget !== element._webAugmenterPopup) {
-      element._webAugmenterPopup.remove();
-      element._webAugmenterPopup = null;
-    } else {
-      // If moving to the popup, let the popup handle its own mouseleave
-      element._webAugmenterPopup.addEventListener('mouseleave', () => {
-        element._webAugmenterPopup.remove();
-        element._webAugmenterPopup = null;
-      }, { once: true });
-    }
-  }
+function removePopup(element) {
+    // Use a timeout to delay the removal, allowing the mouse to move into the popup
+    popupRemovalTimeout = setTimeout(() => {
+        if (element._webAugmenterPopup) {
+            element._webAugmenterPopup.remove();
+            element._webAugmenterPopup = null;
+        }
+    }, 200); // 200ms delay
 }
 
-
-// Listen for a message from the popup to start processing
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "analyzePage") {
-  });
-}
 
 // Listen for a message from the popup to start processing
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
