@@ -102,6 +102,66 @@ function applyAugmentations(analysis) {
   });
 }
 
+function findAndWrapLink(searchText, url, comment) {
+    const walker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT,
+        {
+            acceptNode: function (node) {
+                if (node.parentElement.closest('script, style, a, .web-augmenter-popup, .web-augmenter-overlay-container')) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                if (node.nodeValue.toLowerCase().includes(searchText.toLowerCase())) {
+                    return NodeFilter.FILTER_ACCEPT;
+                }
+                return NodeFilter.FILTER_SKIP;
+            },
+        }
+    );
+
+    const nodesToProcess = [];
+    let node;
+    while ((node = walker.nextNode())) {
+        nodesToProcess.push(node);
+    }
+
+    // Process nodes in reverse to avoid issues with DOM modifications
+    for (let i = nodesToProcess.length - 1; i >= 0; i--) {
+        const textNode = nodesToProcess[i];
+        const text = textNode.nodeValue;
+        const startIndex = text.toLowerCase().indexOf(searchText.toLowerCase());
+
+        if (startIndex !== -1) {
+            const range = document.createRange();
+            range.setStart(textNode, startIndex);
+            range.setEnd(textNode, startIndex + searchText.length);
+
+            // Conflict detection: Check for child elements within the range
+            const contents = range.cloneContents();
+            if (contents.querySelector('*')) {
+                console.log("Skipping link creation due to complex formatting:", searchText);
+                continue; // Skip this match
+            }
+
+            const matchedText = text.substring(startIndex, startIndex + searchText.length);
+            const link = document.createElement('a');
+            link.href = url;
+            link.textContent = matchedText;
+            link.classList.add('auto-wikipedia-link');
+            link.target = '_blank';
+            link.title = comment;
+
+            // Replace the text with the new link
+            range.deleteContents();
+            range.insertNode(link);
+
+            // We'll only wrap the first occurrence we find for safety.
+            return true;
+        }
+    }
+    return false;
+}
+
 // Finds all occurrences of a searchText and returns their screen coordinates.
 // Skips any text found within an existing link (<a> tag).
 function findTextAndGetRects(searchText) {
@@ -169,27 +229,29 @@ function applyAugmentations(analysis) {
   }
 
   analysis.annotations.forEach(annotation => {
-    console.log("Attempting to apply annotation:", annotation);
-    const rects = findTextAndGetRects(annotation.textToHighlight);
+    console.log("Applying annotation for category:", annotation.category);
 
-    rects.forEach(rect => {
-      const overlayElement = document.createElement('div');
-      overlayElement.className = 'web-augmenter-overlay-element';
+    if (annotation.category === 'auto-wikipedia') {
+      findAndWrapLink(annotation.textToHighlight, annotation.url, annotation.comment);
+    }
+    else if (annotation.category === 'fact-checker') {
+      const rects = findTextAndGetRects(annotation.textToHighlight);
+      rects.forEach(rect => {
+        const overlayElement = document.createElement('div');
+        overlayElement.className = 'web-augmenter-overlay-element';
 
-      // Position the overlay based on the text's coordinates
-      overlayElement.style.top = `${rect.top + window.scrollY}px`;
-      overlayElement.style.left = `${rect.left + window.scrollX}px`;
-      overlayElement.style.width = `${rect.width}px`;
-      overlayElement.style.height = `${rect.height}px`;
+        // Position the overlay
+        overlayElement.style.top = `${rect.top + window.scrollY}px`;
+        overlayElement.style.left = `${rect.left + window.scrollX}px`;
+        overlayElement.style.width = `${rect.width}px`;
+        overlayElement.style.height = `${rect.height}px`;
 
-      // Apply category-specific styling and attach popups
-      if (annotation.category === 'fact-checker') {
+        // Style and attach popup
         overlayElement.classList.add('fact-check');
         if (annotation.severity) {
           overlayElement.classList.add(`fact-check-sev-${annotation.severity}`);
         }
 
-        // Attach popup listeners
         let popupTimeout;
         overlayElement.addEventListener('mouseenter', () => {
           popupTimeout = setTimeout(() => {
@@ -200,12 +262,10 @@ function applyAugmentations(analysis) {
           clearTimeout(popupTimeout);
           removePopup(overlayElement);
         });
-      }
-      // Note: 'auto-wikipedia' is currently skipped because we don't touch links.
-      // If we were to implement it for non-link text, the logic would go here.
 
-      overlayContainer.appendChild(overlayElement);
-    });
+        overlayContainer.appendChild(overlayElement);
+      });
+    }
   });
 }
 
