@@ -51,27 +51,21 @@
 /* --- Category: fact-checker --- */
 
 .fact-check {
-  text-decoration-line: underline;
-  text-decoration-style: wavy;
-  text-decoration-color: #d92626; /* A strong red */
-  -webkit-text-decoration-line: underline;
-  -webkit-text-decoration-style: wavy;
-  -webkit-text-decoration-color: #d92626;
-  text-underline-offset: 3px;
+  border-bottom-style: dotted;
+  border-bottom-color: #d92626; /* A strong red */
+  /* The border is applied to the bottom of the div, so we need to position the div correctly */
+  /* This is handled in the JS by setting the height of the overlay element */
 }
 
 /* Severity levels for fact-checker */
 .fact-check-sev-1 { /* Mild */
-  text-decoration-thickness: 1px;
-  -webkit-text-decoration-thickness: 1px;
+  border-bottom-width: 2px;
 }
 
 .fact-check-sev-2 { /* Moderate */
-  text-decoration-thickness: 2px;
-  -webkit-text-decoration-thickness: 2px;
+  border-bottom-width: 3px;
 }
 
-.fact-check-sev-3 { /* Major */
-  text-decoration-thickness: 3px;
-  -webkit-text-decoration-thickness: 3px;
+.fact-check-sev-3 { { /* Major */
+  border-bottom-width: 4px;
 }
