@@ -19,15 +19,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const mockLLMResponse = {
         annotations: [
           {
-            textToHighlight: "example text", // Text to find and highlight
-            comment: "This is an example comment from the LLM.",
-            type: "highlight" // 'highlight', 'popup', 'link'
+            textToHighlight: "example text",
+            comment: "This is an example of a simple highlight.",
+            type: "highlight"
           },
           {
             textToHighlight: "another phrase",
-            comment: "This phrase could have a popup with more details.",
+            comment: "This is an example of a popup.",
             type: "popup",
-            popupContent: "Detailed information about 'another phrase'."
+            popupContent: "This popup provides more detailed information about the selected phrase."
+          },
+          {
+            textToHighlight: "webpage",
+            comment: "This text will be converted into a link.",
+            type: "link",
+            url: "https://www.google.com" // Example URL
           }
         ]
       };

@@ -176,16 +176,14 @@ function applyAugmentations(analysis) {
 
     findAndReplaceText(document.body, annotation.textToHighlight, (matchedText) => {
       const span = document.createElement('span');
-      span.textContent = matchedText; // Use the actually matched text to preserve case
+      span.textContent = matchedText;
+      span.classList.add('web-augmenter-annotated');
 
       if (annotation.type === 'highlight') {
-        span.style.backgroundColor = 'yellow';
-        span.style.cursor = 'help';
+        span.classList.add('web-augmenter-highlight');
         span.title = annotation.comment;
       } else if (annotation.type === 'popup') {
-        span.style.borderBottom = '2px dotted blue';
-        span.style.cursor = 'pointer';
-        span.classList.add('web-augmenter-annotated'); // Add class for easier targeting
+        span.classList.add('web-augmenter-popup-trigger');
 
         span.addEventListener('mouseenter', (event) => {
           // Remove any existing popups
@@ -193,36 +191,26 @@ function applyAugmentations(analysis) {
           existingPopups.forEach(p => p.remove());
 
           const popup = document.createElement('div');
-          popup.className = 'web-augmenter-popup'; // Class for styling and identification
+          popup.className = 'web-augmenter-popup';
           popup.textContent = annotation.popupContent || annotation.comment;
-          popup.style.position = 'fixed'; // Use fixed for positioning relative to viewport
-          popup.style.backgroundColor = 'white';
-          popup.style.border = '1px solid black';
-          popup.style.borderRadius = '4px';
-          popup.style.padding = '8px';
-          popup.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-          popup.style.zIndex = '2147483647'; // Max z-index
-          popup.style.maxWidth = '300px';
-          popup.style.fontSize = '14px'; // Ensure readable font size
-
           document.body.appendChild(popup);
 
-          // Position popup near the element
           const rect = span.getBoundingClientRect();
-          let popupTop = rect.bottom + 5; // Default below
+          let popupTop = rect.bottom + 10; // Position below with a gap
           let popupLeft = rect.left;
+          popup.classList.add('popup-below'); // Default to showing pointer on top
 
           // Adjust if popup goes off screen
-          if (popupLeft + popup.offsetWidth > window.innerWidth) {
-            popupLeft = window.innerWidth - popup.offsetWidth - 5;
+          if (popupLeft + popup.offsetWidth > window.innerWidth - 10) {
+            popupLeft = window.innerWidth - popup.offsetWidth - 10;
           }
-          if (popupTop + popup.offsetHeight > window.innerHeight) {
-            popupTop = rect.top - popup.offsetHeight - 5; // Try above
+          if (popupTop + popup.offsetHeight > window.innerHeight - 10) {
+            popupTop = rect.top - popup.offsetHeight - 10; // Position above
+            popup.classList.remove('popup-below');
+            popup.classList.add('popup-above');
           }
-           // Ensure it's not off screen top/left
-          if (popupTop < 0) popupTop = 5;
-          if (popupLeft < 0) popupLeft = 5;
-
+          if (popupTop < 10) popupTop = 10;
+          if (popupLeft < 10) popupLeft = 10;
 
           popup.style.left = `${popupLeft}px`;
           popup.style.top = `${popupTop}px`;
@@ -231,33 +219,29 @@ function applyAugmentations(analysis) {
         });
 
         span.addEventListener('mouseleave', (event) => {
-          // Delay removal slightly to allow mouse to move into popup if needed (though not for this simple text popup)
           if (span._webAugmenterPopup) {
-             // Check if mouse is over the popup itself
             if (event.relatedTarget !== span._webAugmenterPopup) {
-                span._webAugmenterPopup.remove();
-                span._webAugmenterPopup = null;
+              span._webAugmenterPopup.remove();
+              span._webAugmenterPopup = null;
             } else {
-                // If mouse moved to popup, add listener to popup to remove when mouse leaves it
-                span._webAugmenterPopup.addEventListener('mouseleave', (e) => {
-                    if (e.relatedTarget !== span) { // Ensure not moving back to the span
-                        span._webAugmenterPopup.remove();
-                        span._webAugmenterPopup = null;
-                    }
-                }, { once: true });
+              span._webAugmenterPopup.addEventListener('mouseleave', (e) => {
+                if (e.relatedTarget !== span) {
+                  span._webAugmenterPopup.remove();
+                  span._webAugmenterPopup = null;
+                }
+              }, { once: true });
             }
           }
         });
 
       } else if (annotation.type === 'link') {
+        span.classList.add('web-augmenter-link');
         const link = document.createElement('a');
         link.href = annotation.url || '#';
         link.textContent = matchedText;
         link.title = annotation.comment || `Link to ${annotation.url}`;
-        link.target = '_blank'; // Open in new tab
-        link.style.color = 'blue'; // Example styling
-        link.style.textDecoration = 'underline';
-        span.innerHTML = ''; // Clear the span
+        link.target = '_blank';
+        span.textContent = ''; // Clear the span's text content
         span.appendChild(link);
       }
       return span;
