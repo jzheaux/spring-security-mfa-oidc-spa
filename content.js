@@ -140,10 +140,10 @@ function findTextAndGetRects(searchText) {
             range.setStart(node, index);
             range.setEnd(node, index + searchText.length);
 
-            // Get the bounding rectangles for the range
-            const clientRects = range.getBoundingClientRects();
-            for (let i = 0; i < clientRects.length; i++) {
-                rects.push(clientRects[i]);
+            // Get the bounding rectangle for the range
+            const clientRect = range.getBoundingClientRect();
+            if (clientRect.width > 0 && clientRect.height > 0) {
+                rects.push(clientRect);
             }
 
             startIndex = index + searchText.length;
