@@ -4,9 +4,20 @@
 
 /* --- Base Styles --- */
 
-.web-augmenter-annotated {
+.web-augmenter-overlay-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2147483646; /* Just below the popups */
+  pointer-events: none; /* Allows clicks to pass through to the page below */
+}
+
+.web-augmenter-overlay-element {
+  position: absolute;
+  pointer-events: auto; /* Re-enable pointer events for this element */
   cursor: pointer;
-  display: inline;
 }
 
 .web-augmenter-popup {

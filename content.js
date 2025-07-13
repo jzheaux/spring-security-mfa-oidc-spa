@@ -102,65 +102,54 @@ function applyAugmentations(analysis) {
   });
 }
 
-// Improved helper function to find and replace text in text nodes.
-// This version handles text that might be split across multiple nodes or within nested elements.
-// It aims to replace only the first occurrence it finds for a given annotation to avoid issues with overlapping annotations.
-function findAndReplaceText(parentElement, searchText, replacementNodeCallback) {
-  const walker = document.createTreeWalker(parentElement, NodeFilter.SHOW_TEXT, {
-    acceptNode: function (node) {
-      // Skip nodes within scripts, styles, and our own popups
-      if (node.parentElement.closest('script, style, .web-augmenter-popup')) {
-        return NodeFilter.FILTER_REJECT;
-      }
-      if (node.nodeValue.toLowerCase().includes(searchText.toLowerCase())) {
-        return NodeFilter.FILTER_ACCEPT;
-      }
-      return NodeFilter.FILTER_SKIP;
-    }
-  });
-
-  let node;
-  const nodesToProcess = [];
-  while (node = walker.nextNode()) {
-    nodesToProcess.push(node);
-  }
-
-  // Process nodes in reverse order to avoid issues with text node splitting and length changes
-  for (let i = nodesToProcess.length - 1; i >= 0; i--) {
-    let textNode = nodesToProcess[i];
-    let text = textNode.nodeValue;
-    let startIndex = text.toLowerCase().indexOf(searchText.toLowerCase());
-
-    if (startIndex !== -1) {
-      const matchedText = text.substring(startIndex, startIndex + searchText.length);
-
-      // Create a new span for the replacement
-      const replacementNode = replacementNodeCallback(matchedText);
-
-      // Split the text node
-      const textBefore = text.substring(0, startIndex);
-      const textAfter = text.substring(startIndex + searchText.length);
-
-      // Create new text nodes for before and after parts
-      const beforeNode = document.createTextNode(textBefore);
-      const afterNode = document.createTextNode(textAfter);
-
-      // Replace the original text node with the new nodes
-      const parent = textNode.parentNode;
-      if (parent) {
-        if (textBefore) {
-          parent.insertBefore(beforeNode, textNode);
+// Finds all occurrences of a searchText and returns their screen coordinates.
+// Skips any text found within an existing link (<a> tag).
+function findTextAndGetRects(searchText) {
+    const rects = [];
+    const walker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT,
+        {
+            acceptNode: function (node) {
+                // Reject nodes within scripts, styles, and our own UI
+                if (node.parentElement.closest('script, style, .web-augmenter-popup, .web-augmenter-overlay-container')) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                // Reject nodes within links
+                if (node.parentElement.closest('a')) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                // Accept nodes that contain the search text (case-insensitive)
+                if (node.nodeValue.toLowerCase().includes(searchText.toLowerCase())) {
+                    return NodeFilter.FILTER_ACCEPT;
+                }
+                return NodeFilter.FILTER_SKIP;
+            },
         }
-        parent.insertBefore(replacementNode, textNode);
-        if (textAfter) {
-          parent.insertBefore(afterNode, textNode);
+    );
+
+    let node;
+    while ((node = walker.nextNode())) {
+        const nodeText = node.nodeValue;
+        let startIndex = 0;
+        let index;
+
+        // Find all occurrences of searchText in the current node
+        while ((index = nodeText.toLowerCase().indexOf(searchText.toLowerCase(), startIndex)) > -1) {
+            const range = document.createRange();
+            range.setStart(node, index);
+            range.setEnd(node, index + searchText.length);
+
+            // Get the bounding rectangles for the range
+            const clientRects = range.getBoundingClientRects();
+            for (let i = 0; i < clientRects.length; i++) {
+                rects.push(clientRects[i]);
+            }
+
+            startIndex = index + searchText.length;
         }
-        parent.removeChild(textNode);
-        return true; // Indicate that a replacement was made
-      }
     }
-  }
-  return false; // No replacement made
+    return rects;
 }
 
 
@@ -171,62 +160,51 @@ function applyAugmentations(analysis) {
     return;
   }
 
+  let overlayContainer = document.getElementById('web-augmenter-overlay-container');
+  if (!overlayContainer) {
+    overlayContainer = document.createElement('div');
+    overlayContainer.id = 'web-augmenter-overlay-container';
+    overlayContainer.className = 'web-augmenter-overlay-container';
+    document.body.appendChild(overlayContainer);
+  }
+
   analysis.annotations.forEach(annotation => {
     console.log("Attempting to apply annotation:", annotation);
+    const rects = findTextAndGetRects(annotation.textToHighlight);
 
-    findAndReplaceText(document.body, annotation.textToHighlight, (matchedText) => {
-      const span = document.createElement('span');
-      span.textContent = matchedText;
-      span.classList.add('web-augmenter-annotated');
+    rects.forEach(rect => {
+      const overlayElement = document.createElement('div');
+      overlayElement.className = 'web-augmenter-overlay-element';
 
-      // --- Category-based Styling ---
+      // Position the overlay based on the text's coordinates
+      overlayElement.style.top = `${rect.top + window.scrollY}px`;
+      overlayElement.style.left = `${rect.left + window.scrollX}px`;
+      overlayElement.style.width = `${rect.width}px`;
+      overlayElement.style.height = `${rect.height}px`;
 
-      if (annotation.category === 'auto-wikipedia') {
-        const link = document.createElement('a');
-        link.href = annotation.url;
-        link.textContent = matchedText;
-        link.classList.add('auto-wikipedia-link');
-        link.target = '_blank';
-        link.title = annotation.comment; // Simple tooltip for now
-
-        // Bonus: Preview on hover
-        let popupTimeout;
-        link.addEventListener('mouseenter', (event) => {
-            // Debounce to prevent popups from flashing while moving mouse
-            popupTimeout = setTimeout(() => {
-                createPopup(link, `Wikipedia Preview: ${annotation.comment}`, annotation.url);
-            }, 500); // 500ms delay
-        });
-        link.addEventListener('mouseleave', (event) => {
-            clearTimeout(popupTimeout);
-            removePopup(link, event);
-        });
-
-        span.textContent = '';
-        span.appendChild(link);
-
-      } else if (annotation.category === 'fact-checker') {
-        span.classList.add('fact-check');
+      // Apply category-specific styling and attach popups
+      if (annotation.category === 'fact-checker') {
+        overlayElement.classList.add('fact-check');
         if (annotation.severity) {
-            span.classList.add(`fact-check-sev-${annotation.severity}`);
+          overlayElement.classList.add(`fact-check-sev-${annotation.severity}`);
         }
-        span.title = annotation.comment; // Use title for simple explanation
 
-        // Create a more detailed popup on hover
-         let popupTimeout;
-        span.addEventListener('mouseenter', (event) => {
-             popupTimeout = setTimeout(() => {
-                createPopup(span, `Fact Check: ${annotation.comment}`);
-            }, 300);
+        // Attach popup listeners
+        let popupTimeout;
+        overlayElement.addEventListener('mouseenter', () => {
+          popupTimeout = setTimeout(() => {
+            createPopup(overlayElement, `Fact Check: ${annotation.comment}`);
+          }, 300);
         });
-        span.addEventListener('mouseleave', (event) => {
-            clearTimeout(popupTimeout);
-            removePopup(span, event);
+        overlayElement.addEventListener('mouseleave', () => {
+          clearTimeout(popupTimeout);
+          removePopup(overlayElement);
         });
       }
-      // Add other categories here in the future (e.g., 'bias-tracker')
+      // Note: 'auto-wikipedia' is currently skipped because we don't touch links.
+      // If we were to implement it for non-link text, the logic would go here.
 
-      return span;
+      overlayContainer.appendChild(overlayElement);
     });
   });
 }
@@ -322,26 +300,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 function clearPreviousAugmentations() {
   console.log("Clearing previous augmentations.");
-  // This is a bit simplistic. If we wrapped original text nodes, we'd need to unwrap them.
-  // For now, if we replace text nodes with spans, we need to restore the original text.
-  // This current implementation replaces the text node with a span, so "clearing" means
-  // we would need to reload the page or implement a more sophisticated undo mechanism.
-  // A simpler approach for now: if spans are just styled text, we can remove the styling or the spans.
-  // Let's assume for now that re-running the analysis on the current DOM is acceptable,
-  // or that the user will reload if they want a "fresh" analysis.
-  // For a better UX, we'd store original nodes and restore them.
-
-  // Remove popups
+  const overlayContainer = document.getElementById('web-augmenter-overlay-container');
+  if (overlayContainer) {
+    overlayContainer.remove();
+  }
+  // Also remove any lingering popups
   const existingPopups = document.querySelectorAll('.web-augmenter-popup');
   existingPopups.forEach(p => p.remove());
-
-  // For highlights and other span-based changes, if we just add classes/styles,
-  // we could remove them. Since we are creating new spans and replacing text nodes,
-  // a full revert is harder. The current `findAndReplaceText` replaces only the first match,
-  // so re-running on an already annotated page might annotate the next occurrence.
-  // This will be an area for future improvement (e.g., by marking annotated content
-  // or by reverting changes more carefully).
-  // For now, let's make `applyAugmentations` idempotent as much as possible by searching the original text.
-  // The `findAndReplaceText` function already tries to avoid re-annotating by only processing text nodes
-  // and not nodes inside our own popups.
 }
