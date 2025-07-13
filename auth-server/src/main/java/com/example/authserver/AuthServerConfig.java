@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.ott.OneTimeTokenAuthenticationToken;
 import org.springframework.security.config.Customizer;
@@ -36,6 +37,9 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.savedrequest.RequestCache;
+import org.springframework.security.web.webauthn.authentication.WebAuthnAuthentication;
+import org.springframework.security.web.webauthn.management.JdbcUserCredentialRepository;
+import org.springframework.security.web.webauthn.management.UserCredentialRepository;
 import org.springframework.util.StringUtils;
 
 import com.nimbusds.jose.JOSEException;
@@ -82,15 +86,23 @@ class AuthServerConfig {
         http
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/error", "/login").permitAll()
-                .requestMatchers("/ott/**").access(needs(UsernamePasswordAuthenticationToken.class))
-                .anyRequest().access(needs(OneTimeTokenAuthenticationToken.class))
+                .requestMatchers("/webauthn/**").access(needs(UsernamePasswordAuthenticationToken.class))
+                .anyRequest().access(needs(WebAuthnAuthentication.class))
             )
             .oauth2ResourceServer((oauth2) -> oauth2.jwt(Customizer.withDefaults()))
             .httpBasic(Customizer.withDefaults())
-            .formLogin(Customizer.withDefaults())
-            .oneTimeTokenLogin((ott) -> ott.loginPage("/ott"))
+            .formLogin((form) -> form.loginPage("/login"))
+            .webAuthn((webauthn) -> webauthn.rpId("authz.127.0.0.1.nip.io")
+                .rpName("Carved Rock Fitness")
+                .allowedOrigins("https://authz.127.0.0.1.nip.io:7443")
+            )
             .with(new MfaConfigurer(), Customizer.withDefaults());
         return http.build();
+    }
+
+    @Bean
+    UserCredentialRepository credentials(JdbcOperations jdbcOperations) {
+        return new JdbcUserCredentialRepository(jdbcOperations);
     }
 
     @Bean
