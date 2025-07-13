@@ -179,73 +179,130 @@ function applyAugmentations(analysis) {
       span.textContent = matchedText;
       span.classList.add('web-augmenter-annotated');
 
-      if (annotation.type === 'highlight') {
-        span.classList.add('web-augmenter-highlight');
-        span.title = annotation.comment;
-      } else if (annotation.type === 'popup') {
-        span.classList.add('web-augmenter-popup-trigger');
+      // --- Category-based Styling ---
 
-        span.addEventListener('mouseenter', (event) => {
-          // Remove any existing popups
-          const existingPopups = document.querySelectorAll('.web-augmenter-popup');
-          existingPopups.forEach(p => p.remove());
-
-          const popup = document.createElement('div');
-          popup.className = 'web-augmenter-popup';
-          popup.textContent = annotation.popupContent || annotation.comment;
-          document.body.appendChild(popup);
-
-          const rect = span.getBoundingClientRect();
-          let popupTop = rect.bottom + 10; // Position below with a gap
-          let popupLeft = rect.left;
-          popup.classList.add('popup-below'); // Default to showing pointer on top
-
-          // Adjust if popup goes off screen
-          if (popupLeft + popup.offsetWidth > window.innerWidth - 10) {
-            popupLeft = window.innerWidth - popup.offsetWidth - 10;
-          }
-          if (popupTop + popup.offsetHeight > window.innerHeight - 10) {
-            popupTop = rect.top - popup.offsetHeight - 10; // Position above
-            popup.classList.remove('popup-below');
-            popup.classList.add('popup-above');
-          }
-          if (popupTop < 10) popupTop = 10;
-          if (popupLeft < 10) popupLeft = 10;
-
-          popup.style.left = `${popupLeft}px`;
-          popup.style.top = `${popupTop}px`;
-
-          span._webAugmenterPopup = popup;
-        });
-
-        span.addEventListener('mouseleave', (event) => {
-          if (span._webAugmenterPopup) {
-            if (event.relatedTarget !== span._webAugmenterPopup) {
-              span._webAugmenterPopup.remove();
-              span._webAugmenterPopup = null;
-            } else {
-              span._webAugmenterPopup.addEventListener('mouseleave', (e) => {
-                if (e.relatedTarget !== span) {
-                  span._webAugmenterPopup.remove();
-                  span._webAugmenterPopup = null;
-                }
-              }, { once: true });
-            }
-          }
-        });
-
-      } else if (annotation.type === 'link') {
-        span.classList.add('web-augmenter-link');
+      if (annotation.category === 'auto-wikipedia') {
         const link = document.createElement('a');
-        link.href = annotation.url || '#';
+        link.href = annotation.url;
         link.textContent = matchedText;
-        link.title = annotation.comment || `Link to ${annotation.url}`;
+        link.classList.add('auto-wikipedia-link');
         link.target = '_blank';
-        span.textContent = ''; // Clear the span's text content
+        link.title = annotation.comment; // Simple tooltip for now
+
+        // Bonus: Preview on hover
+        let popupTimeout;
+        link.addEventListener('mouseenter', (event) => {
+            // Debounce to prevent popups from flashing while moving mouse
+            popupTimeout = setTimeout(() => {
+                createPopup(link, `Wikipedia Preview: ${annotation.comment}`, annotation.url);
+            }, 500); // 500ms delay
+        });
+        link.addEventListener('mouseleave', (event) => {
+            clearTimeout(popupTimeout);
+            removePopup(link, event);
+        });
+
+        span.textContent = '';
         span.appendChild(link);
+
+      } else if (annotation.category === 'fact-checker') {
+        span.classList.add('fact-check');
+        if (annotation.severity) {
+            span.classList.add(`fact-check-sev-${annotation.severity}`);
+        }
+        span.title = annotation.comment; // Use title for simple explanation
+
+        // Create a more detailed popup on hover
+         let popupTimeout;
+        span.addEventListener('mouseenter', (event) => {
+             popupTimeout = setTimeout(() => {
+                createPopup(span, `Fact Check: ${annotation.comment}`);
+            }, 300);
+        });
+        span.addEventListener('mouseleave', (event) => {
+            clearTimeout(popupTimeout);
+            removePopup(span, event);
+        });
       }
+      // Add other categories here in the future (e.g., 'bias-tracker')
+
       return span;
     });
+  });
+}
+
+
+// --- Generic Popup Creation and Removal Functions ---
+
+function createPopup(element, content, url = null) {
+  // Remove any existing popups first
+  const existingPopups = document.querySelectorAll('.web-augmenter-popup');
+  existingPopups.forEach(p => p.remove());
+
+  const popup = document.createElement('div');
+  popup.className = 'web-augmenter-popup';
+
+  // Populate popup content
+  const text = document.createElement('p');
+  text.textContent = content;
+  text.style.margin = '0';
+  text.style.padding = '0';
+  popup.appendChild(text);
+
+  if (url) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.textContent = "Read more...";
+    link.target = '_blank';
+    link.style.color = '#0645ad';
+    link.style.display = 'block';
+    link.style.marginTop = '8px';
+    popup.appendChild(link);
+  }
+
+  document.body.appendChild(popup);
+
+  // Position the popup
+  const rect = element.getBoundingClientRect();
+  let popupTop = rect.bottom + 8;
+  let popupLeft = rect.left;
+
+  if (popupLeft + popup.offsetWidth > window.innerWidth - 10) {
+    popupLeft = window.innerWidth - popup.offsetWidth - 10;
+  }
+  if (popupTop + popup.offsetHeight > window.innerHeight - 10) {
+    popupTop = rect.top - popup.offsetHeight - 8;
+  }
+  if (popupTop < 10) popupTop = 10;
+  if (popupLeft < 10) popupLeft = 10;
+
+  popup.style.left = `${popupLeft}px`;
+  popup.style.top = `${popupTop}px`;
+
+  // Store reference for removal
+  element._webAugmenterPopup = popup;
+}
+
+function removePopup(element, event) {
+  if (element._webAugmenterPopup) {
+    // Check if the mouse is moving to the popup itself
+    if (event.relatedTarget !== element._webAugmenterPopup) {
+      element._webAugmenterPopup.remove();
+      element._webAugmenterPopup = null;
+    } else {
+      // If moving to the popup, let the popup handle its own mouseleave
+      element._webAugmenterPopup.addEventListener('mouseleave', () => {
+        element._webAugmenterPopup.remove();
+        element._webAugmenterPopup = null;
+      }, { once: true });
+    }
+  }
+}
+
+
+// Listen for a message from the popup to start processing
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "analyzePage") {
   });
 }
 

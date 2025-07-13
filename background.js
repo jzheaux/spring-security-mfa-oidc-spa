@@ -19,21 +19,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const mockLLMResponse = {
         annotations: [
           {
-            textToHighlight: "example text",
-            comment: "This is an example of a simple highlight.",
-            type: "highlight"
+            category: "auto-wikipedia",
+            textToHighlight: "Paris",
+            comment: "Provides background information on the capital city of France.",
+            url: "https://en.wikipedia.org/wiki/Paris"
           },
           {
-            textToHighlight: "another phrase",
-            comment: "This is an example of a popup.",
-            type: "popup",
-            popupContent: "This popup provides more detailed information about the selected phrase."
+            category: "fact-checker",
+            textToHighlight: "the moon is made of cheese",
+            comment: "This is a common misconception. The moon is composed of rock and minerals.",
+            severity: 3 // Major misinformation
           },
           {
-            textToHighlight: "webpage",
-            comment: "This text will be converted into a link.",
-            type: "link",
-            url: "https://www.google.com" // Example URL
+            category: "fact-checker",
+            textToHighlight: "water boils at 90°C",
+            comment: "This is only true at high altitudes. At sea level, water boils at 100°C.",
+            severity: 1 // Mild misinformation
           }
         ]
       };
