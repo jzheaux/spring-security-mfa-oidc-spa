@@ -102,114 +102,35 @@ function applyAugmentations(analysis) {
   });
 }
 
-function findAndWrapLink(searchText, url, comment) {
+// Creates a mapping from a clean, text-only version of the page
+// back to the original DOM nodes.
+function createDomTextMapper() {
     const walker = document.createTreeWalker(
         document.body,
         NodeFilter.SHOW_TEXT,
         {
-            acceptNode: function (node) {
-                if (node.parentElement.closest('script, style, a, .web-augmenter-popup, .web-augmenter-overlay-container')) {
+            acceptNode: (node) => {
+                // Skip text within our own UI, scripts, and styles
+                if (node.parentElement.closest('.web-augmenter-popup, .web-augmenter-overlay-container, script, style')) {
                     return NodeFilter.FILTER_REJECT;
                 }
-                if (node.nodeValue.toLowerCase().includes(searchText.toLowerCase())) {
-                    return NodeFilter.FILTER_ACCEPT;
-                }
-                return NodeFilter.FILTER_SKIP;
-            },
+                return NodeFilter.FILTER_ACCEPT;
+            }
         }
     );
 
-    const nodesToProcess = [];
+    let cleanText = '';
+    const charToDomMap = [];
     let node;
+
     while ((node = walker.nextNode())) {
-        nodesToProcess.push(node);
-    }
-
-    // Process nodes in reverse to avoid issues with DOM modifications
-    for (let i = nodesToProcess.length - 1; i >= 0; i--) {
-        const textNode = nodesToProcess[i];
-        const text = textNode.nodeValue;
-        const startIndex = text.toLowerCase().indexOf(searchText.toLowerCase());
-
-        if (startIndex !== -1) {
-            const range = document.createRange();
-            range.setStart(textNode, startIndex);
-            range.setEnd(textNode, startIndex + searchText.length);
-
-            // Conflict detection: Check for child elements within the range
-            const contents = range.cloneContents();
-            if (contents.querySelector('*')) {
-                console.log("Skipping link creation due to complex formatting:", searchText);
-                continue; // Skip this match
-            }
-
-            const matchedText = text.substring(startIndex, startIndex + searchText.length);
-            const link = document.createElement('a');
-            link.href = url;
-            link.textContent = matchedText;
-            link.classList.add('auto-wikipedia-link');
-            link.target = '_blank';
-            link.title = comment;
-
-            // Replace the text with the new link
-            range.deleteContents();
-            range.insertNode(link);
-
-            // We'll only wrap the first occurrence we find for safety.
-            return true;
+        for (let i = 0; i < node.nodeValue.length; i++) {
+            cleanText += node.nodeValue[i];
+            charToDomMap.push({ node: node, offset: i });
         }
     }
-    return false;
-}
 
-// Finds all occurrences of a searchText and returns their screen coordinates.
-// Skips any text found within an existing link (<a> tag).
-function findTextAndGetRects(searchText) {
-    const rects = [];
-    const walker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_TEXT,
-        {
-            acceptNode: function (node) {
-                // Reject nodes within scripts, styles, and our own UI
-                if (node.parentElement.closest('script, style, .web-augmenter-popup, .web-augmenter-overlay-container')) {
-                    return NodeFilter.FILTER_REJECT;
-                }
-                // Reject nodes within links
-                if (node.parentElement.closest('a')) {
-                    return NodeFilter.FILTER_REJECT;
-                }
-                // Accept nodes that contain the search text (case-insensitive)
-                if (node.nodeValue.toLowerCase().includes(searchText.toLowerCase())) {
-                    return NodeFilter.FILTER_ACCEPT;
-                }
-                return NodeFilter.FILTER_SKIP;
-            },
-        }
-    );
-
-    let node;
-    while ((node = walker.nextNode())) {
-        const nodeText = node.nodeValue;
-        let startIndex = 0;
-        let index;
-
-        // Find all occurrences of searchText in the current node
-        while ((index = nodeText.toLowerCase().indexOf(searchText.toLowerCase(), startIndex)) > -1) {
-            const range = document.createRange();
-            range.setStart(node, index);
-            range.setEnd(node, index + searchText.length);
-
-            // Get the bounding rectangle for the range
-            const clientRect = range.getBoundingClientRect();
-            if (clientRect.width > 0 && clientRect.height > 0) {
-                rects.push(clientRect);
-            }
-
-            startIndex = index + searchText.length;
-        }
-    }
-    return rects;
+    return { cleanText, charToDomMap };
 }
 
 
@@ -217,6 +138,12 @@ function findTextAndGetRects(searchText) {
 function applyAugmentations(analysis) {
   if (!analysis || !analysis.annotations || analysis.annotations.length === 0) {
     console.log("No augmentations to apply.");
+    return;
+  }
+
+  const { cleanText, charToDomMap } = createDomTextMapper();
+  if (!cleanText || charToDomMap.length === 0) {
+    console.log("Could not process page content.");
     return;
   }
 
@@ -228,43 +155,84 @@ function applyAugmentations(analysis) {
     document.body.appendChild(overlayContainer);
   }
 
-  analysis.annotations.forEach(annotation => {
-    console.log("Applying annotation for category:", annotation.category);
+  // Sort annotations to handle longer ones first, preventing nested conflicts
+  const sortedAnnotations = analysis.annotations.sort((a, b) => b.textToHighlight.length - a.textToHighlight.length);
 
-    if (annotation.category === 'auto-wikipedia') {
-      findAndWrapLink(annotation.textToHighlight, annotation.url, annotation.comment);
-    }
-    else if (annotation.category === 'fact-checker') {
-      const rects = findTextAndGetRects(annotation.textToHighlight);
-      rects.forEach(rect => {
-        const overlayElement = document.createElement('div');
-        overlayElement.className = 'web-augmenter-overlay-element';
+  const appliedRanges = []; // Keep track of applied ranges to avoid overlaps
 
-        // Position the overlay
-        overlayElement.style.top = `${rect.top + window.scrollY}px`;
-        overlayElement.style.left = `${rect.left + window.scrollX}px`;
-        overlayElement.style.width = `${rect.width}px`;
-        overlayElement.style.height = `${rect.height}px`;
+  sortedAnnotations.forEach(annotation => {
+    console.log("Processing annotation:", annotation);
+    const searchText = annotation.textToHighlight;
+    let startIndex = 0;
+    let matchIndex;
 
-        // Style and attach popup
-        overlayElement.classList.add('fact-check');
-        if (annotation.severity) {
-          overlayElement.classList.add(`fact-check-sev-${annotation.severity}`);
+    // Find all occurrences of the text in the clean string
+    while ((matchIndex = cleanText.toLowerCase().indexOf(searchText.toLowerCase(), startIndex)) !== -1) {
+      const endIndex = matchIndex + searchText.length - 1;
+
+      // Check if this range overlaps with an already applied one
+      const overlaps = appliedRanges.some(r => matchIndex < r.end && endIndex > r.start);
+      if (overlaps) {
+        startIndex = matchIndex + 1; // Move to the next possible start
+        continue;
+      }
+
+      // Get DOM mapping for start and end of the match
+      const startDomInfo = charToDomMap[matchIndex];
+      const endDomInfo = charToDomMap[endIndex];
+
+      if (startDomInfo && endDomInfo) {
+        const range = document.createRange();
+        range.setStart(startDomInfo.node, startDomInfo.offset);
+        range.setEnd(endDomInfo.node, endDomInfo.offset + 1);
+
+        // --- Apply annotation using the created range ---
+        if (annotation.category === 'auto-wikipedia') {
+          // Conflict check: is the range inside a link or does it contain elements?
+          if (range.startContainer.parentElement.closest('a') || range.cloneContents().querySelector('*')) {
+            console.log("Skipping 'auto-wikipedia' due to existing link or complex content.");
+          } else {
+            const link = document.createElement('a');
+            link.href = annotation.url;
+            link.className = 'auto-wikipedia-link';
+            link.title = annotation.comment;
+            link.target = '_blank';
+            range.surroundContents(link);
+          }
         }
+        else if (annotation.category === 'fact-checker') {
+          const rect = range.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            const overlayElement = document.createElement('div');
+            overlayElement.className = 'web-augmenter-overlay-element fact-check';
+            if (annotation.severity) {
+              overlayElement.classList.add(`fact-check-sev-${annotation.severity}`);
+            }
 
-        let popupTimeout;
-        overlayElement.addEventListener('mouseenter', () => {
-          popupTimeout = setTimeout(() => {
-            createPopup(overlayElement, `Fact Check: ${annotation.comment}`);
-          }, 300);
-        });
-        overlayElement.addEventListener('mouseleave', () => {
-          clearTimeout(popupTimeout);
-          removePopup(overlayElement);
-        });
+            overlayElement.style.top = `${rect.top + window.scrollY}px`;
+            overlayElement.style.left = `${rect.left + window.scrollX}px`;
+            overlayElement.style.width = `${rect.width}px`;
+            overlayElement.style.height = `${rect.height}px`;
 
-        overlayContainer.appendChild(overlayElement);
-      });
+            let popupTimeout;
+            overlayElement.addEventListener('mouseenter', () => {
+              popupTimeout = setTimeout(() => {
+                createPopup(overlayElement, `Fact Check: ${annotation.comment}`);
+              }, 300);
+            });
+            overlayElement.addEventListener('mouseleave', () => {
+              clearTimeout(popupTimeout);
+              removePopup(overlayElement);
+            });
+
+            overlayContainer.appendChild(overlayElement);
+          }
+        }
+      }
+
+      // Mark this range as applied and continue searching from the end of it
+      appliedRanges.push({ start: matchIndex, end: endIndex });
+      startIndex = endIndex + 1;
     }
   });
 }
