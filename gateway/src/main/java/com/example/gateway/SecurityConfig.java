@@ -15,11 +15,15 @@ import org.springframework.session.security.SpringSessionBackedSessionRegistry;
 class SecurityConfig {
 
     @Bean
-    SecurityFilterChain httpSecurity(HttpSecurity http) throws Exception {
+    SecurityFilterChain httpSecurity(HttpSecurity http, SessionRegistry sessionRegistry) throws Exception {
         http
             .authorizeHttpRequests((authorize) -> authorize.anyRequest().authenticated())
             .oauth2Login(Customizer.withDefaults())
-            .logout((logout) -> logout.deleteCookies("SESSION"));
+            .sessionManagement((sessions) -> sessions
+                .maximumSessions(1)
+                .sessionRegistry(sessionRegistry)
+            )
+            .logout((logout) -> logout.deleteCookies("__Host-SESSION"));
         return http.build();
     }
 
