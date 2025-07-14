@@ -22,86 +22,6 @@ function processPageForAugmentation() {
   });
 }
 
-// Function to apply augmentations to the page
-function applyAugmentations(analysis) {
-  if (!analysis || !analysis.annotations || analysis.annotations.length === 0) {
-    console.log("No augmentations to apply.");
-    return;
-  }
-
-  analysis.annotations.forEach(annotation => {
-    console.log("Applying annotation:", annotation);
-    // This is a placeholder.
-    // In the next step, we will implement the actual DOM manipulation
-    // to highlight text, create popups, and add links.
-    // For now, we'll just log what we would do.
-
-    const elements = findTextNodes(document.body, annotation.textToHighlight);
-    elements.forEach(textNode => {
-      const parent = textNode.parentNode;
-      const highlightedText = annotation.textToHighlight;
-      const text = textNode.nodeValue;
-      const startIndex = text.indexOf(highlightedText);
-
-      if (startIndex === -1) return;
-
-      const beforeText = text.substring(0, startIndex);
-      const afterText = text.substring(startIndex + highlightedText.length);
-
-      if (beforeText) {
-        parent.insertBefore(document.createTextNode(beforeText), textNode);
-      }
-
-      const span = document.createElement('span');
-      span.textContent = highlightedText;
-
-      if (annotation.type === 'highlight') {
-        span.style.backgroundColor = 'yellow'; // Simple highlight
-        span.title = annotation.comment;
-      } else if (annotation.type === 'popup') {
-        span.style.borderBottom = '2px dotted blue';
-        span.style.cursor = 'pointer';
-        span.addEventListener('mouseover', () => {
-          // Basic popup - will be improved
-          const popup = document.createElement('div');
-          popup.textContent = annotation.popupContent || annotation.comment;
-          popup.style.position = 'absolute';
-          popup.style.backgroundColor = 'white';
-          popup.style.border = '1px solid black';
-          popup.style.padding = '5px';
-          popup.style.zIndex = '10000';
-          // Position popup near the element - can be improved
-          const rect = span.getBoundingClientRect();
-          popup.style.left = `${window.scrollX + rect.left}px`;
-          popup.style.top = `${window.scrollY + rect.bottom + 5}px`;
-          document.body.appendChild(popup);
-          span._popup = popup; // Store reference to remove later
-        });
-        span.addEventListener('mouseout', () => {
-          if (span._popup) {
-            span._popup.remove();
-            span._popup = null;
-          }
-        });
-      } else if (annotation.type === 'link') {
-        const link = document.createElement('a');
-        link.href = annotation.url || '#'; // Add a URL property to annotation for links
-        link.textContent = highlightedText;
-        link.title = annotation.comment;
-        link.target = '_blank'; // Open in new tab
-        span.innerHTML = ''; // Clear the span
-        span.appendChild(link); // Put the link inside the span (or replace span with link)
-         // No specific styling for link, but could be added
-      }
-       parent.insertBefore(span, textNode);
-       if (afterText) {
-        parent.insertBefore(document.createTextNode(afterText), textNode);
-      }
-      parent.removeChild(textNode);
-    });
-  });
-}
-
 // Creates a mapping from a clean, text-only version of the page
 // back to the original DOM nodes.
 function createDomTextMapper() {
@@ -141,24 +61,74 @@ function applyAugmentations(analysis) {
     return;
   }
 
-  // --- Pass 1: DOM Modifications (e.g., creating links) ---
+  // Separate annotations by type
+  const overlayAnnotations = analysis.annotations
+    .filter(a => a.category !== 'auto-wikipedia')
+    .sort((a, b) => b.textToHighlight.length - a.textToHighlight.length);
+
   const domModifyingAnnotations = analysis.annotations
     .filter(a => a.category === 'auto-wikipedia')
     .sort((a, b) => b.textToHighlight.length - a.textToHighlight.length);
 
-  // --- Pass 2: Overlays (non-destructive) ---
-  const overlayAnnotations = analysis.annotations
-    .filter(a => a.category === 'fact-checker')
-    .sort((a, b) => b.textToHighlight.length - a.textToHighlight.length);
-
+  // Create the DOM map once, before any modifications
   const { cleanText, charToDomMap } = createDomTextMapper();
   if (!cleanText || charToDomMap.length === 0) {
-    console.log("Could not process page content for Pass 1.");
+    console.log("Could not process page content.");
     return;
   }
 
-  const appliedRanges = []; // Prevent link-vs-link overlaps in the first pass
+  const appliedRanges = []; // Keep track of applied ranges to avoid overlaps
 
+  // --- Pass 1: Overlays (Non-Destructive) ---
+  console.log("Starting Pass 1 for overlays.");
+  let overlayContainer = document.getElementById('web-augmenter-overlay-container');
+  if (!overlayContainer) {
+    overlayContainer = document.createElement('div');
+    overlayContainer.id = 'web-augmenter-overlay-container';
+    overlayContainer.className = 'web-augmenter-overlay-container';
+    document.body.appendChild(overlayContainer);
+  }
+
+  overlayAnnotations.forEach(annotation => {
+    const searchText = annotation.textToHighlight;
+    let startIndex = 0;
+    let matchIndex;
+
+    while ((matchIndex = cleanText.toLowerCase().indexOf(searchText.toLowerCase(), startIndex)) !== -1) {
+      const endIndex = matchIndex + searchText.length - 1;
+
+      const overlaps = appliedRanges.some(r => matchIndex < r.end && endIndex > r.start);
+      if (overlaps) {
+        startIndex = matchIndex + 1;
+        continue;
+      }
+
+      const startDomInfo = charToDomMap[matchIndex];
+      const endDomInfo = charToDomMap[endIndex];
+
+      if (startDomInfo && endDomInfo) {
+        const range = document.createRange();
+        range.setStart(startDomInfo.node, startDomInfo.offset);
+        range.setEnd(endDomInfo.node, endDomInfo.offset + 1);
+
+        if (annotation.category === 'fact-checker') {
+          createFactCheckerOverlay(range, annotation, overlayContainer);
+        } else if (annotation.category === 'people-watcher') {
+          createPeopleWatcherOverlay(range, annotation, overlayContainer);
+        } else if (annotation.category === 'tone-detector') {
+          createToneDetectorOverlay(range, annotation, overlayContainer);
+        } else if (annotation.category === 'good-question') {
+          createGoodQuestionMarker(range, annotation, overlayContainer);
+        }
+
+        appliedRanges.push({ start: matchIndex, end: endIndex });
+      }
+      startIndex = endIndex + 1;
+    }
+  });
+
+  // --- Pass 2: DOM Modifications ---
+  console.log("Starting Pass 2 for DOM modifications.");
   domModifyingAnnotations.forEach(annotation => {
     const searchText = annotation.textToHighlight;
     let startIndex = 0;
@@ -166,6 +136,7 @@ function applyAugmentations(analysis) {
 
     while ((matchIndex = cleanText.toLowerCase().indexOf(searchText.toLowerCase(), startIndex)) !== -1) {
       const endIndex = matchIndex + searchText.length - 1;
+
       const overlaps = appliedRanges.some(r => matchIndex < r.end && endIndex > r.start);
       if (overlaps) {
         startIndex = matchIndex + 1;
@@ -189,54 +160,7 @@ function applyAugmentations(analysis) {
           link.title = annotation.comment;
           link.target = '_blank';
           range.surroundContents(link);
-
-          // Mark range as applied to prevent other links from nesting here
           appliedRanges.push({ start: matchIndex, end: endIndex });
-        }
-      }
-      startIndex = endIndex + 1;
-    }
-  });
-
-  // --- Pass 2: Overlays (non-destructive) ---
-  console.log("Starting Pass 2 for overlays.");
-  const { cleanText: cleanText2, charToDomMap: charToDomMap2 } = createDomTextMapper();
-  if (!cleanText2 || charToDomMap2.length === 0) {
-    console.log("Could not process page content for Pass 2.");
-    return;
-  }
-
-  let overlayContainer = document.getElementById('web-augmenter-overlay-container');
-  if (!overlayContainer) {
-    overlayContainer = document.createElement('div');
-    overlayContainer.id = 'web-augmenter-overlay-container';
-    overlayContainer.className = 'web-augmenter-overlay-container';
-    document.body.appendChild(overlayContainer);
-  }
-
-  overlayAnnotations.forEach(annotation => {
-    const searchText = annotation.textToHighlight;
-    let startIndex = 0;
-    let matchIndex;
-
-    while ((matchIndex = cleanText2.toLowerCase().indexOf(searchText.toLowerCase(), startIndex)) !== -1) {
-      const endIndex = matchIndex + searchText.length - 1;
-      const startDomInfo = charToDomMap2[matchIndex];
-      const endDomInfo = charToDomMap2[endIndex];
-
-      if (startDomInfo && endDomInfo) {
-        const range = document.createRange();
-        range.setStart(startDomInfo.node, startDomInfo.offset);
-        range.setEnd(endDomInfo.node, endDomInfo.offset + 1);
-
-        if (annotation.category === 'fact-checker') {
-          createFactCheckerOverlay(range, annotation, overlayContainer);
-        } else if (annotation.category === 'people-watcher') {
-          createPeopleWatcherOverlay(range, annotation, overlayContainer);
-        } else if (annotation.category === 'tone-detector') {
-          createToneDetectorOverlay(range, annotation, overlayContainer);
-        } else if (annotation.category === 'good-question') {
-          createGoodQuestionMarker(range, annotation, overlayContainer);
         }
       }
       startIndex = endIndex + 1;
@@ -462,17 +386,6 @@ function removePopup(element) {
 }
 
 
-// Listen for a message from the popup to start processing
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "analyzePage") {
-    console.log("Content script received analyzePage request from popup.");
-    // Clear previous augmentations before applying new ones
-    clearPreviousAugmentations();
-    processPageForAugmentation();
-    sendResponse({status: "processing"});
-  }
-});
-
 function clearPreviousAugmentations() {
   console.log("Clearing previous augmentations.");
   const overlayContainer = document.getElementById('web-augmenter-overlay-container');
@@ -483,3 +396,15 @@ function clearPreviousAugmentations() {
   const existingPopups = document.querySelectorAll('.web-augmenter-popup');
   existingPopups.forEach(p => p.remove());
 }
+
+
+// Listen for a message from the popup to start processing
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "analyzePage") {
+    console.log("Content script received analyzePage request from popup.");
+    // Clear previous augmentations before applying new ones
+    clearPreviousAugmentations();
+    processPageForAugmentation();
+    sendResponse({status: "processing"});
+  }
+});
