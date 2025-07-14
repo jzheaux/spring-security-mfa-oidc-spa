@@ -84,6 +84,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               textToHighlight: "Only a fool would ignore",
               comment: "This is an example of 'loaded language' bias. It uses emotionally charged words to influence the reader's opinion.\nTo counteract, focus on the factual claims being made, separating them from the emotional manipulation.",
               severity: 3
+          },
+          // Counter-Arguer
+          {
+            category: "counter-arguer",
+            textToHighlight: "The only viable path to economic success is through complete deregulation.",
+            comment: "A common counter-argument is that some regulations are necessary to protect consumers, the environment, and prevent market failures. For example, the 2008 financial crisis is often cited as a result of insufficient regulation."
           }
         ]
       };

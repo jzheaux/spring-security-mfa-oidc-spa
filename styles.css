@@ -122,3 +122,20 @@
 .bias-tracker-sev-1 { border-bottom-width: 2px; }
 .bias-tracker-sev-2 { border-bottom-width: 3px; }
 .bias-tracker-sev-3 { border-bottom-width: 4px; }
+
+/* --- Category: counter-arguer --- */
+.counter-arguer-marker {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background-color: #4b0082; /* Indigo */
+  color: white;
+  border-radius: 50%;
+  text-align: center;
+  font-weight: bold;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+  user-select: none;
+  margin-left: 8px;
+}

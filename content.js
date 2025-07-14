@@ -125,6 +125,8 @@ function applyAugmentations(analysis) {
             createLiteraryDeviceOverlay(range, annotation, overlayContainer);
         } else if (annotation.category === 'bias-tracker') {
             createBiasTrackerOverlay(range, annotation, overlayContainer);
+        } else if (annotation.category === 'counter-arguer') {
+            createCounterArguerMarker(range, annotation);
         }
 
         appliedRanges.push({ start: matchIndex, end: endIndex });
@@ -280,6 +282,8 @@ function createGoodQuestionMarker(range, annotation, container) {
     marker.textContent = '?';
 
     // Position marker at the bottom-right of the paragraph
+    marker.style.position = 'absolute'; // Ensure positioning is relative to the page body
+    marker.style.zIndex = '2147483646'; // High z-index, but below popups
     marker.style.top = `${pRect.bottom + window.scrollY - 20}px`; // Align with bottom
     marker.style.left = `${pRect.right + window.scrollX + 5}px`; // Place just outside
 
@@ -294,7 +298,40 @@ function createGoodQuestionMarker(range, annotation, container) {
         removePopup(marker);
     });
 
-    container.appendChild(marker);
+    document.body.appendChild(marker); // Append to body to ensure it gets pointer events
+}
+
+function createCounterArguerMarker(range, annotation) {
+    const parentParagraph = range.startContainer.parentElement.closest('p');
+    if (!parentParagraph) {
+        console.warn("Could not find parent paragraph for 'counter-arguer'.");
+        return;
+    }
+
+    const pRect = parentParagraph.getBoundingClientRect();
+    if (!pRect || pRect.width === 0) return;
+
+    const marker = document.createElement('div');
+    marker.className = 'counter-arguer-marker';
+    marker.textContent = '⚖️'; // Justice scale emoji
+
+    marker.style.position = 'absolute';
+    marker.style.zIndex = '2147483646';
+    marker.style.top = `${pRect.bottom + window.scrollY - 20}px`;
+    marker.style.left = `${pRect.right + window.scrollX + 5}px`;
+
+    let popupTimeout;
+    marker.addEventListener('mouseenter', () => {
+        popupTimeout = setTimeout(() => {
+            createPopup(marker, `Counter-Argument: ${annotation.comment}`);
+        }, 300);
+    });
+    marker.addEventListener('mouseleave', () => {
+        clearTimeout(popupTimeout);
+        removePopup(marker);
+    });
+
+    document.body.appendChild(marker);
 }
 
 // Helper function to check if an element is on a dark background
@@ -487,10 +524,17 @@ function removePopup(element) {
 
 function clearPreviousAugmentations() {
   console.log("Clearing previous augmentations.");
+
+  // Remove the overlay container
   const overlayContainer = document.getElementById('web-augmenter-overlay-container');
   if (overlayContainer) {
     overlayContainer.remove();
   }
+
+  // Remove any detached markers (like the good-question marker)
+  const detachedMarkers = document.querySelectorAll('.good-question-marker, .counter-arguer-marker');
+  detachedMarkers.forEach(m => m.remove());
+
   // Also remove any lingering popups
   const existingPopups = document.querySelectorAll('.web-augmenter-popup');
   existingPopups.forEach(p => p.remove());
