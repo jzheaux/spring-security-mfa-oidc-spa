@@ -266,16 +266,22 @@ function createToneDetectorOverlay(range, annotation, container) {
 }
 
 function createGoodQuestionMarker(range, annotation, container) {
-    const endRect = range.getClientRects()[range.getClientRects().length - 1];
-    if (!endRect) return;
+    const parentParagraph = range.startContainer.parentElement.closest('p');
+    if (!parentParagraph) {
+        console.warn("Could not find parent paragraph for 'good-question'.");
+        return;
+    }
+
+    const pRect = parentParagraph.getBoundingClientRect();
+    if (!pRect || pRect.width === 0) return;
 
     const marker = document.createElement('div');
     marker.className = 'good-question-marker';
     marker.textContent = '?';
 
-    // Position marker at the end of the last line of the paragraph/range
-    marker.style.top = `${endRect.bottom + window.scrollY - (endRect.height / 2) - 10}px`; // Center vertically on the last line
-    marker.style.left = `${endRect.right + window.scrollX}px`;
+    // Position marker at the bottom-right of the paragraph
+    marker.style.top = `${pRect.bottom + window.scrollY - 20}px`; // Align with bottom
+    marker.style.left = `${pRect.right + window.scrollX + 5}px`; // Place just outside
 
     let popupTimeout;
     marker.addEventListener('mouseenter', () => {
@@ -376,6 +382,9 @@ function createBiasTrackerOverlay(range, annotation, container) {
         if (rect.width > 0 && rect.height > 0) {
             const overlayElement = document.createElement('div');
             overlayElement.className = 'web-augmenter-overlay-element bias-tracker';
+            if (annotation.severity) {
+                overlayElement.classList.add(`bias-tracker-sev-${annotation.severity}`);
+            }
 
             overlayElement.style.top = `${rect.top + window.scrollY}px`;
             overlayElement.style.left = `${rect.left + window.scrollX}px`;

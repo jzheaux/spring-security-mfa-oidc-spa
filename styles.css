@@ -115,5 +115,10 @@
 
 /* --- Category: bias-tracker --- */
 .bias-tracker {
-  border-bottom: 2px solid #f1c40f; /* Dark Yellow */
+  border-bottom-style: solid;
+  border-bottom-color: #f1c40f; /* Dark Yellow */
 }
+
+.bias-tracker-sev-1 { border-bottom-width: 2px; }
+.bias-tracker-sev-2 { border-bottom-width: 3px; }
+.bias-tracker-sev-3 { border-bottom-width: 4px; }

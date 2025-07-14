@@ -46,7 +46,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           {
             category: "good-question",
             textToHighlight: "How do we balance the benefits of a connected world with the fundamental right to privacy?",
-            comment: "This is a key question in modern digital ethics, exploring the conflict between innovation and individual rights."
+            comment: "Given the focus on connectivity, has the author considered the impact of digital divide on equitable access?"
           },
           // Annotations for the dark-themed section
           {
@@ -76,7 +76,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           {
             category: "bias-tracker",
             textToHighlight: "Everyone agrees that",
-            comment: "This is an example of the 'bandwagon effect' bias. It implies that since everyone supposedly agrees, the reader should too, without providing evidence.\nTo counteract, look for specific evidence or expert opinions rather than appeals to popular belief."
+            comment: "This is an example of the 'bandwagon effect' bias. It implies that since everyone supposedly agrees, the reader should too, without providing evidence.\nTo counteract, look for specific evidence or expert opinions rather than appeals to popular belief.",
+            severity: 1
+          },
+          {
+              category: "bias-tracker",
+              textToHighlight: "Only a fool would ignore",
+              comment: "This is an example of 'loaded language' bias. It uses emotionally charged words to influence the reader's opinion.\nTo counteract, focus on the factual claims being made, separating them from the emotional manipulation.",
+              severity: 3
           }
         ]
       };
