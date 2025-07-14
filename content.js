@@ -229,36 +229,159 @@ function applyAugmentations(analysis) {
         range.setStart(startDomInfo.node, startDomInfo.offset);
         range.setEnd(endDomInfo.node, endDomInfo.offset + 1);
 
-        const rect = range.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) {
-          const overlayElement = document.createElement('div');
-          overlayElement.className = 'web-augmenter-overlay-element fact-check';
-          if (annotation.severity) {
-            overlayElement.classList.add(`fact-check-sev-${annotation.severity}`);
-          }
-
-          overlayElement.style.top = `${rect.top + window.scrollY}px`;
-          overlayElement.style.left = `${rect.left + window.scrollX}px`;
-          overlayElement.style.width = `${rect.width}px`;
-          overlayElement.style.height = `${rect.height}px`;
-
-          let popupTimeout;
-          overlayElement.addEventListener('mouseenter', () => {
-            popupTimeout = setTimeout(() => {
-              createPopup(overlayElement, `Fact Check: ${annotation.comment}`);
-            }, 300);
-          });
-          overlayElement.addEventListener('mouseleave', () => {
-            clearTimeout(popupTimeout);
-            removePopup(overlayElement);
-          });
-
-          overlayContainer.appendChild(overlayElement);
+        if (annotation.category === 'fact-checker') {
+          createFactCheckerOverlay(range, annotation, overlayContainer);
+        } else if (annotation.category === 'people-watcher') {
+          createPeopleWatcherOverlay(range, annotation, overlayContainer);
+        } else if (annotation.category === 'tone-detector') {
+          createToneDetectorOverlay(range, annotation, overlayContainer);
+        } else if (annotation.category === 'good-question') {
+          createGoodQuestionMarker(range, annotation, overlayContainer);
         }
       }
       startIndex = endIndex + 1;
     }
   });
+}
+
+function createFactCheckerOverlay(range, annotation, container) {
+  const rects = range.getClientRects();
+  for (const rect of rects) {
+    if (rect.width > 0 && rect.height > 0) {
+      const overlayElement = document.createElement('div');
+      overlayElement.className = 'web-augmenter-overlay-element fact-check';
+      if (annotation.severity) {
+        overlayElement.classList.add(`fact-check-sev-${annotation.severity}`);
+      }
+
+      overlayElement.style.top = `${rect.top + window.scrollY}px`;
+      overlayElement.style.left = `${rect.left + window.scrollX}px`;
+      overlayElement.style.width = `${rect.width}px`;
+      overlayElement.style.height = `${rect.height}px`;
+
+      let popupTimeout;
+      overlayElement.addEventListener('mouseenter', () => {
+        popupTimeout = setTimeout(() => {
+          createPopup(overlayElement, `Fact Check: ${annotation.comment}`);
+        }, 300);
+      });
+      overlayElement.addEventListener('mouseleave', () => {
+        clearTimeout(popupTimeout);
+        removePopup(overlayElement);
+      });
+
+      container.appendChild(overlayElement);
+    }
+  }
+}
+
+function createPeopleWatcherOverlay(range, annotation, container) {
+    const rects = range.getClientRects();
+    for (const rect of rects) {
+        if (rect.width > 0 && rect.height > 0) {
+            const overlayElement = document.createElement('div');
+            overlayElement.className = 'web-augmenter-overlay-element people-watcher';
+
+            overlayElement.style.top = `${rect.top + window.scrollY}px`;
+            overlayElement.style.left = `${rect.left + window.scrollX}px`;
+            overlayElement.style.width = `${rect.width}px`;
+            overlayElement.style.height = `${rect.height}px`;
+
+            let popupTimeout;
+            overlayElement.addEventListener('mouseenter', () => {
+                popupTimeout = setTimeout(() => {
+                    createPopup(overlayElement, `Person: ${annotation.comment}`);
+                }, 300);
+            });
+            overlayElement.addEventListener('mouseleave', () => {
+                clearTimeout(popupTimeout);
+                removePopup(overlayElement);
+            });
+
+            container.appendChild(overlayElement);
+        }
+    }
+}
+
+function createToneDetectorOverlay(range, annotation, container) {
+    const isDark = isElementOnDarkBackground(range.startContainer.parentElement);
+    const toneClass = `tone-${annotation.tone}-${isDark ? 'dark' : 'light'}`;
+
+    const rects = range.getClientRects();
+    for (const rect of rects) {
+        if (rect.width > 0 && rect.height > 0) {
+            const overlayElement = document.createElement('div');
+            overlayElement.className = `web-augmenter-overlay-element tone-highlight ${toneClass}`;
+
+            overlayElement.style.top = `${rect.top + window.scrollY}px`;
+            overlayElement.style.left = `${rect.left + window.scrollX}px`;
+            overlayElement.style.width = `${rect.width}px`;
+            overlayElement.style.height = `${rect.height}px`;
+            overlayElement.style.zIndex = '2147483645'; // Slightly lower z-index for backgrounds
+
+            let popupTimeout;
+            overlayElement.addEventListener('mouseenter', () => {
+                popupTimeout = setTimeout(() => {
+                    createPopup(overlayElement, `Tone: ${annotation.comment}`);
+                }, 300);
+            });
+            overlayElement.addEventListener('mouseleave', () => {
+                clearTimeout(popupTimeout);
+                removePopup(overlayElement);
+            });
+
+            container.appendChild(overlayElement);
+        }
+    }
+}
+
+function createGoodQuestionMarker(range, annotation, container) {
+    const endRect = range.getClientRects()[range.getClientRects().length - 1];
+    if (!endRect) return;
+
+    const marker = document.createElement('div');
+    marker.className = 'good-question-marker';
+    marker.textContent = '?';
+
+    // Position marker at the end of the last line of the paragraph/range
+    marker.style.top = `${endRect.bottom + window.scrollY - (endRect.height / 2) - 10}px`; // Center vertically on the last line
+    marker.style.left = `${endRect.right + window.scrollX}px`;
+
+    let popupTimeout;
+    marker.addEventListener('mouseenter', () => {
+        popupTimeout = setTimeout(() => {
+            createPopup(marker, `Question: ${annotation.comment}`);
+        }, 300);
+    });
+    marker.addEventListener('mouseleave', () => {
+        clearTimeout(popupTimeout);
+        removePopup(marker);
+    });
+
+    container.appendChild(marker);
+}
+
+// Helper function to check if an element is on a dark background
+function isElementOnDarkBackground(element) {
+    if (!element) return false;
+    const style = window.getComputedStyle(element);
+    const bgColor = style.backgroundColor;
+
+    // Simple check for RGB(A) color. More robust checks could parse HSL.
+    if (bgColor && (bgColor.startsWith('rgb') || bgColor.startsWith('rgba'))) {
+        const match = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (match) {
+            const [r, g, b] = [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
+            // Luminance formula to determine brightness
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            return luminance < 0.5;
+        }
+    }
+    // If background is transparent, check parent
+    if (bgColor === 'transparent' || !bgColor) {
+        return isElementOnDarkBackground(element.parentElement);
+    }
+    return false; // Default to light background
 }
 
 

@@ -18,6 +18,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     setTimeout(() => {
       const mockLLMResponse = {
         annotations: [
+          // Existing annotations for the first paragraph
           {
             category: "auto-wikipedia",
             textToHighlight: "Paris",
@@ -26,15 +27,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           },
           {
             category: "fact-checker",
-            textToHighlight: "the moon is made of cheese",
-            comment: "This is a common misconception. The moon is composed of rock and minerals.",
-            severity: 3 // Major misinformation
+            textToHighlight: "water boils at 90°C in Paris",
+            comment: "This is only true at high altitudes. At sea level, water boils at 100°C.",
+            severity: 2
+          },
+          // New Annotations
+          {
+            category: "people-watcher",
+            textToHighlight: "Jane Smith",
+            comment: "Jane Smith is the newly appointed CEO of ExampleCorp, known for her work in AI ethics."
           },
           {
-            category: "fact-checker",
-            textToHighlight: "water boils at 90°C",
-            comment: "This is only true at high altitudes. At sea level, water boils at 100°C.",
-            severity: 1 // Mild misinformation
+            category: "tone-detector",
+            textToHighlight: "I just love it when my code, which worked perfectly yesterday, suddenly stops working for no reason at all.",
+            comment: "The tone of this sentence is highly sarcastic.",
+            tone: "sarcastic"
+          },
+          {
+            category: "good-question",
+            textToHighlight: "How do we balance the benefits of a connected world with the fundamental right to privacy?",
+            comment: "This is a key question in modern digital ethics, exploring the conflict between innovation and individual rights."
+          },
+          // Annotations for the dark-themed section
+          {
+            category: "tone-detector",
+            textToHighlight: "It's simply wonderful.",
+            comment: "The tone of this sentence is sarcastic.",
+            tone: "sarcastic"
+          },
+          {
+            category: "people-watcher",
+            textToHighlight: "John Doe",
+            comment: "John Doe is a placeholder name often used in examples."
           }
         ]
       };

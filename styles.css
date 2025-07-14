@@ -66,6 +66,39 @@
   border-bottom-width: 3px;
 }
 
-.fact-check-sev-3 { { /* Major */
+.fact-check-sev-3 { /* Major */
   border-bottom-width: 4px;
+}
+
+/* --- Category: people-watcher --- */
+
+.people-watcher {
+  border-bottom: 2px solid #3498db; /* A sky blue */
+}
+
+/* --- Category: tone-detector --- */
+
+.tone-highlight {
+  border-radius: 3px;
+}
+/* Using RGBA for semi-transparent background highlights */
+.tone-sarcastic-light { background-color: rgba(231, 76, 60, 0.2); } /* light red */
+.tone-sarcastic-dark { background-color: rgba(231, 76, 60, 0.6); } /* darker red for light text */
+
+/* --- Category: good-question --- */
+
+.good-question-marker {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background-color: #9b59b6; /* A purple */
+  color: white;
+  border-radius: 50%;
+  text-align: center;
+  font-weight: bold;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+  user-select: none; /* Prevents selecting the '?' text */
+  margin-left: 8px; /* Space from the paragraph end */
 }

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Augmenter Test Page</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 40px auto; padding: 20px; }
+        .dark-section { background-color: #2c3e50; color: #ecf0f1; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .dark-section a { color: #3498db; }
+        h1 { color: #2c3e50; }
+        h2 { color: #34495e; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px;}
+    </style>
+</head>
+<body>
+
+    <h1>Test Page for Web Augmenter</h1>
+
+    <h2>Standard Annotations</h2>
+    <p>This is a standard paragraph. As we all know, water boils at 90°C in Paris. This entire sentence should be flagged by the fact-checker, and the word Paris should become a Wikipedia link.</p>
+
+    <p>In this paragraph, we will mention a person. According to reports, Jane Smith has been appointed as the new CEO. The mention of her name should be highlighted by the people-watcher.</p>
+
+    <h2>Tone Detection</h2>
+    <p>This next sentence has a very specific tone. I just love it when my code, which worked perfectly yesterday, suddenly stops working for no reason at all. It's truly my favorite thing.</p>
+
+    <h2>Paragraph-Level Annotations</h2>
+    <p>This is a longer paragraph designed to test the 'good question' feature. It discusses complex topics that might warrant further inquiry. The modern digital age has led to an unprecedented level of connectivity, but it also raises significant questions about privacy, data ownership, and the nature of online discourse. How do we balance the benefits of a connected world with the fundamental right to privacy? A question mark icon should appear at the end of this paragraph.</p>
+
+    <div class="dark-section">
+        <h2>Testing on a Dark Background</h2>
+        <p>This is a test for tone detection on a dark background. The sarcastic tone of this sentence should be highlighted with a color that is visible on this dark grey background. It's simply wonderful.</p>
+        <p>We can also test the people-watcher here. The name John Doe should be underlined in sky blue.</p>
+    </div>
+
+</body>
+</html>
