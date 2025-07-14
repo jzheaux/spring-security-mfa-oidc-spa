@@ -102,3 +102,18 @@
   user-select: none; /* Prevents selecting the '?' text */
   margin-left: 8px; /* Space from the paragraph end */
 }
+
+/* --- Category: jargon-buster --- */
+.jargon-buster {
+  border-bottom: 2px dotted #f39c12; /* Orange */
+}
+
+/* --- Category: literary-device --- */
+.literary-device {
+  border-bottom: 2px solid #2ecc71; /* Green */
+}
+
+/* --- Category: bias-tracker --- */
+.bias-tracker {
+  border-bottom: 2px solid #f1c40f; /* Dark Yellow */
+}

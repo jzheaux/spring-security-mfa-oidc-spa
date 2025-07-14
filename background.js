@@ -59,6 +59,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             category: "people-watcher",
             textToHighlight: "John Doe",
             comment: "John Doe is a placeholder name often used in examples."
+          },
+          // Jargon Buster
+          {
+            category: "jargon-buster",
+            textToHighlight: "right-sizing",
+            comment: "This is corporate jargon for 'laying off employees'."
+          },
+          // Literary Device
+          {
+            category: "literary-device",
+            textToHighlight: "velvet whisper",
+            comment: "This is a metaphor, comparing the quality of her voice to the texture of velvet to imply softness and richness."
+          },
+          // Bias Tracker
+          {
+            category: "bias-tracker",
+            textToHighlight: "Everyone agrees that",
+            comment: "This is an example of the 'bandwagon effect' bias. It implies that since everyone supposedly agrees, the reader should too, without providing evidence.\nTo counteract, look for specific evidence or expert opinions rather than appeals to popular belief."
           }
         ]
       };

@@ -119,6 +119,12 @@ function applyAugmentations(analysis) {
           createToneDetectorOverlay(range, annotation, overlayContainer);
         } else if (annotation.category === 'good-question') {
           createGoodQuestionMarker(range, annotation, overlayContainer);
+        } else if (annotation.category === 'jargon-buster') {
+            createJargonBusterOverlay(range, annotation, overlayContainer);
+        } else if (annotation.category === 'literary-device') {
+            createLiteraryDeviceOverlay(range, annotation, overlayContainer);
+        } else if (annotation.category === 'bias-tracker') {
+            createBiasTrackerOverlay(range, annotation, overlayContainer);
         }
 
         appliedRanges.push({ start: matchIndex, end: endIndex });
@@ -306,6 +312,90 @@ function isElementOnDarkBackground(element) {
         return isElementOnDarkBackground(element.parentElement);
     }
     return false; // Default to light background
+}
+
+function createJargonBusterOverlay(range, annotation, container) {
+    const rects = range.getClientRects();
+    for (const rect of rects) {
+        if (rect.width > 0 && rect.height > 0) {
+            const overlayElement = document.createElement('div');
+            overlayElement.className = 'web-augmenter-overlay-element jargon-buster';
+
+            overlayElement.style.top = `${rect.top + window.scrollY}px`;
+            overlayElement.style.left = `${rect.left + window.scrollX}px`;
+            overlayElement.style.width = `${rect.width}px`;
+            overlayElement.style.height = `${rect.height}px`;
+
+            let popupTimeout;
+            overlayElement.addEventListener('mouseenter', () => {
+                popupTimeout = setTimeout(() => {
+                    createPopup(overlayElement, `Jargon: ${annotation.comment}`);
+                }, 300);
+            });
+            overlayElement.addEventListener('mouseleave', () => {
+                clearTimeout(popupTimeout);
+                removePopup(overlayElement);
+            });
+
+            container.appendChild(overlayElement);
+        }
+    }
+}
+
+function createLiteraryDeviceOverlay(range, annotation, container) {
+    const rects = range.getClientRects();
+    for (const rect of rects) {
+        if (rect.width > 0 && rect.height > 0) {
+            const overlayElement = document.createElement('div');
+            overlayElement.className = 'web-augmenter-overlay-element literary-device';
+
+            overlayElement.style.top = `${rect.top + window.scrollY}px`;
+            overlayElement.style.left = `${rect.left + window.scrollX}px`;
+            overlayElement.style.width = `${rect.width}px`;
+            overlayElement.style.height = `${rect.height}px`;
+
+            let popupTimeout;
+            overlayElement.addEventListener('mouseenter', () => {
+                popupTimeout = setTimeout(() => {
+                    createPopup(overlayElement, `Literary Device: ${annotation.comment}`);
+                }, 300);
+            });
+            overlayElement.addEventListener('mouseleave', () => {
+                clearTimeout(popupTimeout);
+                removePopup(overlayElement);
+            });
+
+            container.appendChild(overlayElement);
+        }
+    }
+}
+
+function createBiasTrackerOverlay(range, annotation, container) {
+    const rects = range.getClientRects();
+    for (const rect of rects) {
+        if (rect.width > 0 && rect.height > 0) {
+            const overlayElement = document.createElement('div');
+            overlayElement.className = 'web-augmenter-overlay-element bias-tracker';
+
+            overlayElement.style.top = `${rect.top + window.scrollY}px`;
+            overlayElement.style.left = `${rect.left + window.scrollX}px`;
+            overlayElement.style.width = `${rect.width}px`;
+            overlayElement.style.height = `${rect.height}px`;
+
+            let popupTimeout;
+            overlayElement.addEventListener('mouseenter', () => {
+                popupTimeout = setTimeout(() => {
+                    createPopup(overlayElement, `Potential Bias: ${annotation.comment}`);
+                }, 300);
+            });
+            overlayElement.addEventListener('mouseleave', () => {
+                clearTimeout(popupTimeout);
+                removePopup(overlayElement);
+            });
+
+            container.appendChild(overlayElement);
+        }
+    }
 }
 
 
