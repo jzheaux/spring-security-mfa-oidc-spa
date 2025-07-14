@@ -141,9 +141,68 @@ function applyAugmentations(analysis) {
     return;
   }
 
+  // --- Pass 1: DOM Modifications (e.g., creating links) ---
+  const domModifyingAnnotations = analysis.annotations
+    .filter(a => a.category === 'auto-wikipedia')
+    .sort((a, b) => b.textToHighlight.length - a.textToHighlight.length);
+
+  // --- Pass 2: Overlays (non-destructive) ---
+  const overlayAnnotations = analysis.annotations
+    .filter(a => a.category === 'fact-checker')
+    .sort((a, b) => b.textToHighlight.length - a.textToHighlight.length);
+
   const { cleanText, charToDomMap } = createDomTextMapper();
   if (!cleanText || charToDomMap.length === 0) {
-    console.log("Could not process page content.");
+    console.log("Could not process page content for Pass 1.");
+    return;
+  }
+
+  const appliedRanges = []; // Prevent link-vs-link overlaps in the first pass
+
+  domModifyingAnnotations.forEach(annotation => {
+    const searchText = annotation.textToHighlight;
+    let startIndex = 0;
+    let matchIndex;
+
+    while ((matchIndex = cleanText.toLowerCase().indexOf(searchText.toLowerCase(), startIndex)) !== -1) {
+      const endIndex = matchIndex + searchText.length - 1;
+      const overlaps = appliedRanges.some(r => matchIndex < r.end && endIndex > r.start);
+      if (overlaps) {
+        startIndex = matchIndex + 1;
+        continue;
+      }
+
+      const startDomInfo = charToDomMap[matchIndex];
+      const endDomInfo = charToDomMap[endIndex];
+
+      if (startDomInfo && endDomInfo) {
+        const range = document.createRange();
+        range.setStart(startDomInfo.node, startDomInfo.offset);
+        range.setEnd(endDomInfo.node, endDomInfo.offset + 1);
+
+        if (range.startContainer.parentElement.closest('a') || range.cloneContents().querySelector('*')) {
+          console.log("Skipping 'auto-wikipedia' due to existing link or complex content.");
+        } else {
+          const link = document.createElement('a');
+          link.href = annotation.url;
+          link.className = 'auto-wikipedia-link';
+          link.title = annotation.comment;
+          link.target = '_blank';
+          range.surroundContents(link);
+
+          // Mark range as applied to prevent other links from nesting here
+          appliedRanges.push({ start: matchIndex, end: endIndex });
+        }
+      }
+      startIndex = endIndex + 1;
+    }
+  });
+
+  // --- Pass 2: Overlays (non-destructive) ---
+  console.log("Starting Pass 2 for overlays.");
+  const { cleanText: cleanText2, charToDomMap: charToDomMap2 } = createDomTextMapper();
+  if (!cleanText2 || charToDomMap2.length === 0) {
+    console.log("Could not process page content for Pass 2.");
     return;
   }
 
@@ -155,83 +214,48 @@ function applyAugmentations(analysis) {
     document.body.appendChild(overlayContainer);
   }
 
-  // Sort annotations to handle longer ones first, preventing nested conflicts
-  const sortedAnnotations = analysis.annotations.sort((a, b) => b.textToHighlight.length - a.textToHighlight.length);
-
-  const appliedRanges = []; // Keep track of applied ranges to avoid overlaps
-
-  sortedAnnotations.forEach(annotation => {
-    console.log("Processing annotation:", annotation);
+  overlayAnnotations.forEach(annotation => {
     const searchText = annotation.textToHighlight;
     let startIndex = 0;
     let matchIndex;
 
-    // Find all occurrences of the text in the clean string
-    while ((matchIndex = cleanText.toLowerCase().indexOf(searchText.toLowerCase(), startIndex)) !== -1) {
+    while ((matchIndex = cleanText2.toLowerCase().indexOf(searchText.toLowerCase(), startIndex)) !== -1) {
       const endIndex = matchIndex + searchText.length - 1;
-
-      // Check if this range overlaps with an already applied one
-      const overlaps = appliedRanges.some(r => matchIndex < r.end && endIndex > r.start);
-      if (overlaps) {
-        startIndex = matchIndex + 1; // Move to the next possible start
-        continue;
-      }
-
-      // Get DOM mapping for start and end of the match
-      const startDomInfo = charToDomMap[matchIndex];
-      const endDomInfo = charToDomMap[endIndex];
+      const startDomInfo = charToDomMap2[matchIndex];
+      const endDomInfo = charToDomMap2[endIndex];
 
       if (startDomInfo && endDomInfo) {
         const range = document.createRange();
         range.setStart(startDomInfo.node, startDomInfo.offset);
         range.setEnd(endDomInfo.node, endDomInfo.offset + 1);
 
-        // --- Apply annotation using the created range ---
-        if (annotation.category === 'auto-wikipedia') {
-          // Conflict check: is the range inside a link or does it contain elements?
-          if (range.startContainer.parentElement.closest('a') || range.cloneContents().querySelector('*')) {
-            console.log("Skipping 'auto-wikipedia' due to existing link or complex content.");
-          } else {
-            const link = document.createElement('a');
-            link.href = annotation.url;
-            link.className = 'auto-wikipedia-link';
-            link.title = annotation.comment;
-            link.target = '_blank';
-            range.surroundContents(link);
+        const rect = range.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          const overlayElement = document.createElement('div');
+          overlayElement.className = 'web-augmenter-overlay-element fact-check';
+          if (annotation.severity) {
+            overlayElement.classList.add(`fact-check-sev-${annotation.severity}`);
           }
-        }
-        else if (annotation.category === 'fact-checker') {
-          const rect = range.getBoundingClientRect();
-          if (rect.width > 0 && rect.height > 0) {
-            const overlayElement = document.createElement('div');
-            overlayElement.className = 'web-augmenter-overlay-element fact-check';
-            if (annotation.severity) {
-              overlayElement.classList.add(`fact-check-sev-${annotation.severity}`);
-            }
 
-            overlayElement.style.top = `${rect.top + window.scrollY}px`;
-            overlayElement.style.left = `${rect.left + window.scrollX}px`;
-            overlayElement.style.width = `${rect.width}px`;
-            overlayElement.style.height = `${rect.height}px`;
+          overlayElement.style.top = `${rect.top + window.scrollY}px`;
+          overlayElement.style.left = `${rect.left + window.scrollX}px`;
+          overlayElement.style.width = `${rect.width}px`;
+          overlayElement.style.height = `${rect.height}px`;
 
-            let popupTimeout;
-            overlayElement.addEventListener('mouseenter', () => {
-              popupTimeout = setTimeout(() => {
-                createPopup(overlayElement, `Fact Check: ${annotation.comment}`);
-              }, 300);
-            });
-            overlayElement.addEventListener('mouseleave', () => {
-              clearTimeout(popupTimeout);
-              removePopup(overlayElement);
-            });
+          let popupTimeout;
+          overlayElement.addEventListener('mouseenter', () => {
+            popupTimeout = setTimeout(() => {
+              createPopup(overlayElement, `Fact Check: ${annotation.comment}`);
+            }, 300);
+          });
+          overlayElement.addEventListener('mouseleave', () => {
+            clearTimeout(popupTimeout);
+            removePopup(overlayElement);
+          });
 
-            overlayContainer.appendChild(overlayElement);
-          }
+          overlayContainer.appendChild(overlayElement);
         }
       }
-
-      // Mark this range as applied and continue searching from the end of it
-      appliedRanges.push({ start: matchIndex, end: endIndex });
       startIndex = endIndex + 1;
     }
   });
