@@ -20,6 +20,13 @@
 <body>
   <h3>Web Article Augmenter</h3>
   <button id="analyzeButton">Analyze Page</button>
+  <hr>
+  <div>
+    <label for="apiKey" style="font-size: 12px;">OpenAI API Key:</label>
+    <input type="password" id="apiKey" style="width: 95%; margin-top: 4px;" placeholder="sk-...">
+    <button id="saveKeyButton" style="margin-top: 6px;">Save Key</button>
+    <p id="statusMessage" style="font-size: 11px; color: green; min-height: 14px;"></p>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>
