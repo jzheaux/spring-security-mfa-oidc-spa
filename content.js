@@ -117,7 +117,7 @@ function applyAugmentations(analysis) {
           createPeopleWatcherOverlay(range, annotation, overlayContainer);
         } else if (annotation.category === 'tone-detector') {
           createToneDetectorOverlay(range, annotation, overlayContainer);
-        } else if (annotation.category === 'good-question') {
+        } else if (annotation.category === 'question-poser') {
           createGoodQuestionMarker(range, annotation, overlayContainer);
         } else if (annotation.category === 'jargon-buster') {
             createJargonBusterOverlay(range, annotation, overlayContainer);
