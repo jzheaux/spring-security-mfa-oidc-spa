@@ -541,13 +541,19 @@ function clearPreviousAugmentations() {
 }
 
 
-// Listen for a message from the popup to start processing
+// Listen for messages from the background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "analyzePage") {
+    // This is from the popup for full-page analysis
     console.log("Content script received analyzePage request from popup.");
-    // Clear previous augmentations before applying new ones
     clearPreviousAugmentations();
-    processPageForAugmentation();
-    sendResponse({status: "processing"});
+    processPageForAugmentation(); // This will message background to get analysis
+    sendResponse({status: "processing"}); // Acknowledge the message
+  }
+  else if (request.action === "applyAnalysis") {
+    // This is from the context menu, with the analysis already complete
+    console.log("Content script received applyAnalysis request from context menu.");
+    clearPreviousAugmentations();
+    applyAugmentations(request.analysis);
   }
 });

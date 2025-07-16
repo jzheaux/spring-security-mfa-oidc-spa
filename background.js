@@ -1,9 +1,11 @@
-// Background script for the extension
-// This script will handle communication between different parts of the extension
-// and manage long-lived tasks.
-
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Web Article Augmenter extension installed.");
+  // --- Context Menu Setup ---
+  chrome.contextMenus.create({
+    id: "analyzeSelection",
+    title: "Analyze Selected Text",
+    contexts: ["selection"]
+  });
 });
 
 // --- System Prompt for the LLM ---
@@ -15,6 +17,8 @@ Each annotation object must have the following properties:
 - "comment": Your analysis, explanation, question, or counter-argument.
 
 Special instructions for specific categories:
+- CRITICAL: The value for 'textToHighlight' must be an exact, verbatim substring of the user-provided text. Do not invent, correct, or change any characters, spacing, or punctuation in the text you select for highlighting.
+- For "people-watcher": The 'textToHighlight' must ONLY be the person's name, excluding any surrounding titles, descriptions, or punctuation.
 - For "question-poser": You are not identifying a question in the text. Instead, you must pose a thoughtful question about the topic in the 'comment' field, using the 'textToHighlight' as an anchor for where the question should appear.
 - For "counter-arguer": You are not identifying a counter-argument in the text. Instead, you must present a concise counter-argument in the 'comment' field to the claim made in the 'textToHighlight'.
 
@@ -86,7 +90,7 @@ const mockLLMResponse = {
     { category: "fact-checker", textToHighlight: "water boils at 90°C in Paris", comment: "This is only true at high altitudes. At sea level, water boils at 100°C.", severity: 2 },
     { category: "people-watcher", textToHighlight: "Jane Smith", comment: "Jane Smith is the newly appointed CEO of ExampleCorp, known for her work in AI ethics." },
     { category: "tone-detector", textToHighlight: "I just love it when my code, which worked perfectly yesterday, suddenly stops working for no reason at all.", comment: "The tone of this sentence is highly sarcastic.", tone: "sarcastic" },
-    { category: "question-poser", textToHighlight: "How do we balance the benefits of a connected world with the fundamental right to privacy?", comment: "Given the focus on connectivity, has the author considered the impact of digital divide on equitable access?" },
+    { category: "question-poser", textToHighlight: "How do we balance the benefits of a connected world with the fundamental right to privacy?", comment: "Given the focus on connectivity, has the author considered the impact of the digital divide on equitable access?" },
     { category: "tone-detector", textToHighlight: "It's simply wonderful.", comment: "The tone of this sentence is sarcastic.", tone: "sarcastic" },
     { category: "people-watcher", textToHighlight: "John Doe", comment: "John Doe is a placeholder name often used in examples." },
     { category: "jargon-buster", textToHighlight: "right-sizing", comment: "This is corporate jargon for 'laying off employees'." },
@@ -97,11 +101,9 @@ const mockLLMResponse = {
   ]
 };
 
-// --- Main Message Listener ---
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "processPage") {
-    console.log("Background script received processPage request.");
-
+// --- Reusable Analysis Function ---
+async function getAnalysisForText(text) {
+  return new Promise((resolve, reject) => {
     chrome.storage.sync.get(['openai_api_key'], async function(result) {
       if (result.openai_api_key) {
         console.log("API Key found, calling OpenAI.");
@@ -116,7 +118,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               model: 'gpt-4-turbo-preview',
               messages: [
                 { role: 'system', content: systemPrompt },
-                { role: 'user', content: `Please analyze the following text:\n\n${request.content}` }
+                { role: 'user', content: `Please analyze the following text:\n\n${text}` }
               ],
               response_format: { type: "json_object" }
             })
@@ -129,22 +131,45 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           const data = await response.json();
           const analysis = JSON.parse(data.choices[0].message.content);
           console.log("Received analysis from OpenAI:", analysis);
-          sendResponse({ status: "success", analysis: analysis });
+          resolve({ status: "success", analysis: analysis });
 
         } catch (error) {
           console.error("Error calling OpenAI API:", error);
           console.log("Falling back to mock data.");
-          sendResponse({ status: "success", analysis: mockLLMResponse });
+          resolve({ status: "success", analysis: mockLLMResponse }); // Resolve with mock on error
         }
       } else {
         console.log("No API Key found, using mock data.");
-        // Simulate network delay for mock response
         setTimeout(() => {
-          sendResponse({ status: "success", analysis: mockLLMResponse });
+          resolve({ status: "success", analysis: mockLLMResponse });
         }, 1000);
       }
     });
+  });
+}
 
+// --- Event Listeners ---
+
+// Listener for context menu clicks
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId === "analyzeSelection" && info.selectionText) {
+      console.log("Context menu clicked. Analyzing selected text.");
+      const analysisResult = await getAnalysisForText(info.selectionText);
+      chrome.tabs.sendMessage(tab.id, {
+        action: "applyAnalysis",
+        analysis: analysisResult.analysis
+      });
+    }
+});
+
+// Listener for messages from the popup (for full page analysis)
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "processPage") {
+    console.log("Received processPage request. Analyzing full page.");
+    (async () => {
+      const analysisResult = await getAnalysisForText(request.content);
+      sendResponse(analysisResult);
+    })();
     return true; // Indicates that the response will be sent asynchronously
   }
 });

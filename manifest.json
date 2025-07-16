@@ -3,7 +3,7 @@
   "name": "Web Article Augmenter",
   "version": "0.1.0",
   "description": "Augments web articles with LLM-powered insights.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "scripting", "storage", "contextMenus"],
   "host_permissions": [
     "https://api.openai.com/"
   ],
